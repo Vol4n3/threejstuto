@@ -1,0 +1,26 @@
+{
+  "name": "threejstuto",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "gulp"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Vol4n3/threejstuto.git"
+  },
+  "author": "Vol4n3",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Vol4n3/threejstuto/issues"
+  },
+  "homepage": "https://github.com/Vol4n3/threejstuto#readme",
+  "devDependencies": {
+    "gulp": "^3.9.1"
+  },
+  "dependencies": {
+    "express": "^4.15.2",
+    "socket.io": "^1.7.3"
+  }
+}

@@ -1,0 +1,12 @@
+html, body{
+    margin: 0;
+}
+canvas{
+    display: block;
+}
+#helper{
+    position: absolute;
+    color: white;
+    top: 0;
+    left: 0;
+}
