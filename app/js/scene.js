@@ -81,8 +81,11 @@
     scene.add(light);
 
     //Le Sol
+    var texture = new THREE.TextureLoader().load( 'images/stone.png' );
+    //texture.repeat.set( 1, 1 );
     var groundMat = new THREE.MeshPhongMaterial({
-        specular: 0xffffff,
+        map: texture,
+        //specular: 0xffffff,
         shininess: 1
     });
     var groundGeo = new THREE.PlaneGeometry(400, 400);
