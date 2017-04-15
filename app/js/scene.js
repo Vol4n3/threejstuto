@@ -1,5 +1,5 @@
 /// <reference path="../../typings/index.d.ts" />
-(function() {
+(function () {
     'use strict';
     /**
      * @type {WebSocket}
@@ -16,15 +16,17 @@
     //executer le rendu dans le canvas
     var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
     renderer.shadowMap.enabled = true;
-    renderer.shadowMap.type = THREE.PCFSoftShadowMap; // default THREE.PCFShadowMap
+    renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.gammaInput = true;
     renderer.gammaOutput = true;
 
     //Creation de la camera
     var aspect = window.innerWidth / window.innerHeight;
+    //var profo = 10;
     var camera = new THREE.PerspectiveCamera(100, aspect, 0.1, 1000);
-    camera.position.set(0, 0, 40);
-    camera.lookAt(new THREE.Vector3(0, 0, 0))
+    //var camera = new THREE.OrthographicCamera(window.innerWidth / - profo, window.innerWidth / profo, window.innerHeight / profo, window.innerHeight / - profo, 1, 1000);
+    camera.position.set(0, 0, 50);
+    camera.lookAt(new THREE.Vector3(0, 0, 0));
 
     //redefini la taille de la scene
     function resize() {
@@ -41,34 +43,31 @@
     var scene = new THREE.Scene();
 
     //Création du joueur
-    var sphere = new THREE.SphereGeometry(1.5, 20, 20);
-    var material = new THREE.MeshLambertMaterial({ color: 0xffffff });
-    var player = new THREE.Mesh(sphere, material);
+    var sphere = new THREE.SphereGeometry(3, 20, 20);
+    var whiteLambert = new THREE.MeshLambertMaterial({ color: 0x55ffff });
+    var player = new THREE.Mesh(sphere, whiteLambert);
     player.castShadow = true;
     player.receiveShadow = true;
     scene.add(player);
 
     for (var i = 0; i < 50; i++) {
-        var size = Math.random() * 4
-        var geometry = new THREE.BoxGeometry(size + 1, size + 1, Math.random() * 10 + 3);
-        var material = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
-        var cube = new THREE.Mesh(geometry, material);
-        cube.position.x = Math.random() * 150 - 75;
-        cube.position.y = Math.random() * 150 - 75;
+        var size = Math.random() * 5;
+        var Boxgeometry = new THREE.BoxGeometry(size + 1, size + 1, Math.random() * 30 + 10);
+        var randomLambert = new THREE.MeshLambertMaterial({ color: Math.random() * 0xffffff });
+        var cube = new THREE.Mesh(Boxgeometry, randomLambert);
+        cube.position.x = Math.random() * 300 - 150;
+        cube.position.y = Math.random() * 300 - 150;
         cube.castShadow = true;
         cube.receiveShadow = true;
         scene.add(cube);
-
     }
-
-
     var cursor = new THREE.Object3D();
-    cursor.position.set()
     scene.add(cursor);
     //Création de la lumiere
     var light = new THREE.SpotLight(0xffffff, 1, 40, 1.50, 0.7, 1);
     var lightOn = true;
-    light.castShadow = true; // default false
+    light.castShadow = true;
+    // default false
     //Set up shadow properties for the light
     light.position.set(0, 0, 10);
     light.target = cursor;
@@ -81,36 +80,19 @@
     scene.add(light);
 
     //Le Sol
-    var texture = new THREE.TextureLoader().load('images/stone.png', function(texture) {
+    var texture = new THREE.TextureLoader().load('images/stone.png', function (texture) {
         texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.offset.set(0, 0);
-        texture.repeat.set(5, 5);
+        texture.repeat.set(600, 600);
     });
-
     var groundMat = new THREE.MeshPhongMaterial({
         map: texture,
-        specular: 0x000000,
-        shininess: 1
+        specular: 0x111111,
     });
-    var groundGeo = new THREE.PlaneGeometry(600, 600);
+    var groundGeo = new THREE.PlaneGeometry(4000, 4000);
     var ground = new THREE.Mesh(groundGeo, groundMat);
     ground.doubleSided = true;
     ground.receiveShadow = true;
     scene.add(ground);
-
-    var size = 500,
-        step = 30;
-    var grid = new THREE.Geometry();
-    for (var i = -size; i <= size; i += step) {
-        grid.vertices.push(new THREE.Vector3(-size, i, 0.1));
-        grid.vertices.push(new THREE.Vector3(size, i, 0.1));
-        grid.vertices.push(new THREE.Vector3(i, -size, 0.1));
-        grid.vertices.push(new THREE.Vector3(i, size, 0.1));
-    }
-    var white_mat = new THREE.LineBasicMaterial({ color: 0x101010 });
-    white_mat.opacity = 0.01;
-    var line = new THREE.LineSegments(grid, white_mat);
-    scene.add(line);
 
     //HELPERS
     var helper = document.getElementById('helper');
@@ -133,24 +115,21 @@
         }
         helpers.push(this);
     }
-    AddHelper.prototype.update = function() {
+    AddHelper.prototype.update = function () {
         this.p.textContent = this.label + ' : ' + this.callback();
     }
-    new AddHelper('player X', function() { return player.position.x; });
-    new AddHelper('player Y', function() { return player.position.y; });
-    new AddHelper('cursor', function() { return target.distanceTo(mouseCursor); });
 
-
-
+    new AddHelper('player X', function () { return player.position.x; });
+    new AddHelper('player Y', function () { return player.position.y; });
+    new AddHelper('distancemouse', function () { return distanceMouse; });
     var target = new jcv_physics.Point(0, 0);
-    var mouseCursor = new jcv_physics.Point();
+    var mouseCursor = new jcv_physics.Point(0, 0);
     var vectorTarget = new jcv_physics.Vector(0, 0);
-
-    cursor.position.x = 0;
-    cursor.position.y = 0;
-    cursor.position.z = 0;
+    var distanceMouse = 0;
 
     //La boucle
+
+    var vectorShoot = new jcv_physics.Vector(0, 0);
     function animate() {
         for (var h in helpers) {
             helpers[h].update();
@@ -158,8 +137,14 @@
         //activact keys
         k.action();
         //camera follow
-        camera.position.x = 0 + player.position.x;
-        camera.position.y = 0 + player.position.y;
+        camera.position.x = player.position.x * 0.96 + cursor.position.x / 25;
+        camera.position.y = player.position.y * 0.96 + cursor.position.y / 25;
+        camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
+
+        //light.angle = 
+        distanceMouse = new jcv_physics.Point(cursor.position.x, cursor.position.y).distanceTo(new jcv_physics.Point(player.position.x, player.position.y))
+        light.angle = 1.5 / (1 + distanceMouse / 300);
+        light.distance = 40 * (1 + distanceMouse / 300);
         //flashLight open effect
         if (lightOn && light.intensity < 1) {
             light.intensity += 0.002;
@@ -167,15 +152,15 @@
         //position de la lumiere
         mouseCursor.x = player.position.x + mouseX - (window.innerWidth * 0.5);
         mouseCursor.y = player.position.y - mouseY + (window.innerHeight * 0.5);
-        vectorTarget.setLength(target.distanceTo(mouseCursor) / 100);
+
+        vectorTarget.setLength(target.distanceTo(mouseCursor) / 40);
         vectorTarget.setAngle(target.angleTo(mouseCursor));
+
         if (target.distanceTo(mouseCursor) > 1) target.translate(vectorTarget);
 
         cursor.position.x = target.x;
         cursor.position.y = target.y;
-        //cursor.position.set( player.position.x + mouseX - (window.innerWidth * 0.5),
-        //player.position.y - mouseY + (window.innerHeight * 0.5),
-        //0);
+
         light.position.x = player.position.x;
         light.position.y = player.position.y;
         //rendu de la scene et de la camera
@@ -184,48 +169,51 @@
     }
     requestAnimationFrame(animate)
 
-    //Les Controles
-    var Zoom = function() {
-        this.x = 0;
-        this.y = 0;
-    }
-
-    canvas.addEventListener("mousemove", function(e) {
-        mouseCursor.x = mouseX = e.clientX;
-        mouseCursor.y = mouseY = e.clientY;
+    //CONTROLES
+    canvas.addEventListener("mousemove", function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
     });
-    var Key = function() {
+    var Key = function () {
         this.keyUp = false;
         this.keyDown = false;
         this.keyLeft = false;
         this.keyRight = false;
         //this.reset = function(){this = new Key()}
     }
-    Key.prototype.action = function() {
-        if (this.keyUp) player.position.y += 0.5;
-        if (this.keyDown) player.position.y -= 0.5;
-        if (this.keyLeft) player.position.x -= 0.5;
-        if (this.keyRight) player.position.x += 0.5;
+    Key.prototype.action = function () {
+        if (this.keyUp) player.position.y += 1.5;
+        if (this.keyDown) player.position.y -= 1.5;
+        if (this.keyLeft) player.position.x -= 1.5;
+        if (this.keyRight) player.position.x += 1.5;
     }
     var k = new Key();
-    window.addEventListener("keydown", function(e) {
+    window.addEventListener("keydown", function (e) {
         if (e.keyCode == 38 || e.keyCode == 90) k.keyUp = true
         if (e.keyCode == 40 || e.keyCode == 83) k.keyDown = true
         if (e.keyCode == 37 || e.keyCode == 81) k.keyLeft = true
         if (e.keyCode == 39 || e.keyCode == 68) k.keyRight = true
     });
-    window.addEventListener("keyup", function(e) {
-        if (e.keyCode == 40 || e.keyCode == 90) k.keyUp = false
-        if (e.keyCode == 38 || e.keyCode == 83) k.keyDown = false
+    window.addEventListener("keyup", function (e) {
+        if (e.keyCode == 38 || e.keyCode == 90) k.keyUp = false
+        if (e.keyCode == 40 || e.keyCode == 83) k.keyDown = false
         if (e.keyCode == 37 || e.keyCode == 81) k.keyLeft = false
         if (e.keyCode == 39 || e.keyCode == 68) k.keyRight = false
     });
-    window.document.addEventListener('contextmenu', function(e) {
+    window.document.addEventListener('contextmenu', function (e) {
         e.preventDefault();
         if (light.intensity > 0) {
             light.intensity = 0;
             player.geometry.colors = new THREE.Color(0x555555)
             lightOn = false;
         } else lightOn = true;
+    });
+
+    window.document.addEventListener('click', function (e) {
+        e.preventDefault();
+        vectorShoot = new jcv_physics.Vector(
+            player.position.x * 0.96 + cursor.position.x / 25,
+            player.position.y * 0.96 + cursor.position.y / 25
+        );
     });
 })();

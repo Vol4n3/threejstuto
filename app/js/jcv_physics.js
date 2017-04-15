@@ -39,9 +39,15 @@
             this.color = "black";
             this.x = x || 0;
             this.y = y || 0;
+            this.radius = 1;
         }
         update() {
 
+        }
+        collisionTo(object){
+            if(object.type == "Point"){
+
+            }
         }
         translate(vector) {
             if (vector.type == "Vector") {
@@ -312,7 +318,7 @@
             this.friction = new Vector(1, 1);
             this.bounce = 1;
             this.mass = 1;
-            this.radius = 1;
+
             this.rotation = 0;
             this.color = "black";
             this.circleMovement = new CircleVector(this.rotation, this.radius);
@@ -322,7 +328,6 @@
         update() {
             this.circleMovement.multiply(this.rotateFriction);
             this.rotation = this.circleMovement.angle;
-
             this.velocity.multiply(this.friction);
             this.x = this.x + this.velocity.x;
             this.y = this.y + this.velocity.y;
@@ -331,7 +336,6 @@
             //todo
             var grav = new Vector(0, 0),
                 dist = this.distanceTo(p2);
-
             grav.setLength(p2.mass / (dist * dist));
             grav.setAngle(this.angleTo(p2));
             this.velocity.add(grav);
