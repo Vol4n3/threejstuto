@@ -193,8 +193,8 @@
             //activact keys
             k.action();
             //camera follow
-            camera.position.x = joueur.player.position.x * 0.96 + joueur.cursor.position.x / 25;
-            camera.position.y = joueur.player.position.y * 0.96 + joueur.cursor.position.y / 25;
+            camera.position.x = joueur.player.position.x * 0.96 + joueur.cursor.position.x / 1;
+            camera.position.y = joueur.player.position.y * 0.96 + joueur.cursor.position.y / 1;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
 
 
