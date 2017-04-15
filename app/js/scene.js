@@ -171,12 +171,8 @@
     AddHelper.prototype.update = function () {
         this.p.textContent = this.label + ' : ' + this.callback();
     }
-    if (joueur) {
-        new AddHelper('player X', function () { return joueur.cursor.position.x; });
-        new AddHelper('player Y', function () { return joueur.cursor.position.y; });
-
-    }
-    new AddHelper('distancemouse', function () { return distanceMouse; });
+    new AddHelper('player X', function () { if (joueur) return joueur.cursor.position.x; });
+    new AddHelper('player Y', function () { if (joueur) return joueur.cursor.position.y; });
 
     var target = new jcv_physics.Point(0, 0);
     var mouseCursor = new jcv_physics.Point(0, 0);
@@ -185,7 +181,7 @@
 
     //La boucle d'animation
     var vectorShoot = new jcv_physics.Vector(0, 0);
-    var precision = 1;
+    var precision = 40;
     function animate() {
         for (var h in helpers) {
             helpers[h].update();
