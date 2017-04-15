@@ -55,9 +55,9 @@
     }
     var personnages = {};
     class Personnage {
-        constructor(socket) {
+        constructor(socket, color) {
             this.socket = socket;
-            this.color = Math.random()* 0x777777 + 0x999999;
+            this.color = color || Math.random() * 0x777777 + 0x999999;
             this.x = Math.random() * 100;
             this.y = Math.random() * 100;
             var s = new THREE.SphereGeometry(3, 20, 20);
@@ -87,22 +87,23 @@
             scene.add(this.light);
             personnages[this.socket] = this;
         }
-        remove(){
+        remove() {
             scene.remove(this.light);
             scene.remove(this.cursor);
             scene.remove(this.player);
             delete personnages[this.socket];
         }
-        send(){
-            socket.emit('personnage_position',{
-                x : this.player.position.x,
-                y : this.player.position.y,
+        send() {
+            socket.emit('personnage_position', {
+                x: this.player.position.x,
+                y: this.player.position.y,
                 cursorX: this.cursor.position.x,
                 cursorY: this.cursor.position.y,
-                lightOn: this.lightOn
+                lightOn: this.lightOn,
+                color: this.color,
             });
         }
-        receive(data){
+        receive(data) {
             this.player.position.x = data.x;
             this.player.position.y = data.y;
             this.light.position.x = data.x;
@@ -114,19 +115,19 @@
     }
     //création du joueur
     var joueur;
-    socket.on('player_socket',function(socket){
-        joueur = new Personnage(socket);
+    socket.on('player_socket', function (data) {
+        joueur = new Personnage(data.socketId, data.color);
     })
-    socket.on('new_player',function(data){
-        new Personnage(data.socketId);
+    socket.on('new_player', function (data) {
+        new Personnage(data.socketId, data.color);
     });
-    socket.on('player_left',function(data){
+    socket.on('player_left', function (data) {
         personnages[data.socketId].remove();
     });
     //reception des données multiplayer
-    socket.on('receive_players',function(data){
-        for(var pls in data){
-            if(pls != joueur.socket){
+    socket.on('receive_players', function (data) {
+        for (var pls in data) {
+            if (pls != joueur.socket) {
                 personnages[pls].receive(data[pls]);
             }
         }
@@ -170,7 +171,7 @@
     AddHelper.prototype.update = function () {
         this.p.textContent = this.label + ' : ' + this.callback();
     }
-    if(joueur){
+    if (joueur) {
         new AddHelper('player X', function () { return joueur.cursor.position.x; });
         new AddHelper('player Y', function () { return joueur.cursor.position.y; });
 
@@ -188,7 +189,7 @@
         for (var h in helpers) {
             helpers[h].update();
         }
-        if(joueur){
+        if (joueur) {
             //activact keys
             k.action();
             //camera follow
@@ -196,22 +197,23 @@
             camera.position.y = joueur.player.position.y * 0.96 + joueur.cursor.position.y / 25;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
 
-            distanceMouse = new jcv_physics.Point(
-                joueur.cursor.position.x,
-                joueur.cursor.position.y
-            ).distanceTo(
-                new jcv_physics.Point(
-                    joueur.player.position.x,
-                    joueur.player.position.y
-                ));
-            joueur.light.angle = 1.5 / (1 + distanceMouse / 300);
-            joueur.light.distance = 40 * (1 + distanceMouse / 300);
+
             //flashLight open effect
-            for(var socketP in personnages){
-            
+            for (var socketP in personnages) {
+
                 if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 1) {
                     personnages[socketP].light.intensity += 0.002;
                 }
+                distanceMouse = new jcv_physics.Point(
+                    personnages[socketP].cursor.position.x,
+                    personnages[socketP].cursor.position.y
+                ).distanceTo(
+                    new jcv_physics.Point(
+                        personnages[socketP].player.position.x,
+                        personnages[socketP].player.position.y
+                    ));
+                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 300);
+                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 300);
             }
             //position de la lumiere
             mouseCursor.x = joueur.player.position.x + mouseX - (window.innerWidth * 0.5);
@@ -234,9 +236,9 @@
     }
     requestAnimationFrame(animate)
     //la boucle Multiplayer
-    setInterval(function(){
-        if(joueur)joueur.send();
-    },50)
+    setInterval(function () {
+        if (joueur) joueur.send();
+    }, 50)
     //CONTROLES
     canvas.addEventListener("mousemove", function (e) {
         mouseX = e.clientX;
@@ -283,15 +285,15 @@
             joueur.player.position.y * 0.96 + joueur.cursor.position.y / 25
         );
         var p = new Personnage("test");
-        setTimeout(function(){
+        setTimeout(function () {
             var data = {
-                x : 0,
-                y : 0,
+                x: 0,
+                y: 0,
                 cursorX: 20,
                 cursorY: 20,
             }
             p.receive(data);
             p.remove();
-        },5000)
+        }, 5000)
     });
 })();

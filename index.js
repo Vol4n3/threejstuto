@@ -13,10 +13,15 @@ setInterval(function(){
 },50)
 io.on('connection',function(socket){
     //connexion du client
-    socket.emit('player_socket',socket.id);
+    var color = Math.random()* 0x777777 + 0x999999;
+    socket.emit('player_socket',{
+        socketId : socket.id,
+        color : color,
+    });
     for(var i in personnages){
         socket.emit('new_player',{
-            socketId: i
+            socketId: i,
+            color : personnages[i].color
         });
     }
     personnages[socket.id] = {};
@@ -24,7 +29,8 @@ io.on('connection',function(socket){
         personnages[socket.id] = data;
     })
     socket.broadcast.emit('new_player',{
-        socketId: socket.id
+        socketId: socket.id,
+        color : color
     });
     socket.on('disconnect',function(){
         socket.broadcast.emit('player_left',{
