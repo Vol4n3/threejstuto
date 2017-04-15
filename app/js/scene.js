@@ -200,7 +200,7 @@
 
             //flashLight open effect
             for (var socketP in personnages) {
-
+                if (!personnages[socketP].lightOn) personnages[socketP].light.intensity = 0;
                 if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 1) {
                     personnages[socketP].light.intensity += 0.002;
                 }
@@ -273,7 +273,6 @@
     window.document.addEventListener('contextmenu', function (e) {
         e.preventDefault();
         if (joueur.light.intensity > 0) {
-            joueur.light.intensity = 0;
             joueur.lightOn = false;
         } else joueur.lightOn = true;
     });
