@@ -185,6 +185,7 @@
 
     //La boucle d'animation
     var vectorShoot = new jcv_physics.Vector(0, 0);
+    var precision = 1;
     function animate() {
         for (var h in helpers) {
             helpers[h].update();
@@ -193,8 +194,8 @@
             //activact keys
             k.action();
             //camera follow
-            camera.position.x = joueur.player.position.x * 0.96 + joueur.cursor.position.x / 1;
-            camera.position.y = joueur.player.position.y * 0.96 + joueur.cursor.position.y / 1;
+            camera.position.x = joueur.player.position.x * 0.96 + joueur.cursor.position.x / 25;
+            camera.position.y = joueur.player.position.y * 0.96 + joueur.cursor.position.y / 25;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
 
 
@@ -219,7 +220,7 @@
             mouseCursor.x = joueur.player.position.x + mouseX - (window.innerWidth * 0.5);
             mouseCursor.y = joueur.player.position.y - mouseY + (window.innerHeight * 0.5);
 
-            vectorTarget.setLength(target.distanceTo(mouseCursor) / 40);
+            vectorTarget.setLength(target.distanceTo(mouseCursor) / precision);
             vectorTarget.setAngle(target.angleTo(mouseCursor));
 
             if (target.distanceTo(mouseCursor) > 1) target.translate(vectorTarget);
