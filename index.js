@@ -46,7 +46,7 @@ io.on('connection', function (socket) {
     });
     socket.on('fireshoot', function (bullet) {
         var b = new Segment(new Point(bullet._x, bullet._y), new Point(bullet.x, bullet.y));
-        b.setLengthP2(100);
+        b.setLengthP2(120);
         io.emit('shoot',{
             _x : b.p1.x,
             _y : b.p1.y,
