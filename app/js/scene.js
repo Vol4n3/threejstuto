@@ -42,6 +42,7 @@
     //création de la scene en ThreeJS
     var scene = new THREE.Scene();
 
+
     for (var i = 0; i < 50; i++) {
         var size = Math.random() * 5;
         var Boxgeometry = new THREE.BoxGeometry(size + 1, size + 1, Math.random() * 30 + 10);
@@ -53,6 +54,36 @@
         cube.receiveShadow = true;
         scene.add(cube);
     }
+    class Bullet {
+        constructor(_x, _y, x, y) {
+            this._x = _x;
+            this._y = _y;
+            this.x = x;
+            this.y = y;
+            var material = new THREE.MeshBasicMaterial({
+                color: 0xffffff,
+                transparent: true,
+            });
+
+            var geometry = new THREE.Geometry();
+            geometry.vertices.push(
+                new THREE.Vector3(this._x, this._y, 3),
+                new THREE.Vector3(this.x, this.y, 3)
+            );
+            this.line = new THREE.Line(geometry, material);
+            scene.add(this.line);
+            this.effect = setInterval(function () {
+                this.line.material.opacity -= 0.1;
+            }.bind(this), 20);
+            setTimeout(function () {
+                clearInterval(this.effect);
+                scene.remove(this.line);
+            }.bind(this),200)
+        }
+    }
+    socket.on('shoot', function (data) {
+        new Bullet(data._x, data._y, data.x, data.y)
+    });
     var personnages = {};
     class Personnage {
         constructor(socket, color) {
@@ -171,12 +202,15 @@
     AddHelper.prototype.update = function () {
         this.p.textContent = this.label + ' : ' + this.callback();
     }
-    new AddHelper('player X', function () { if (joueur) return joueur.cursor.position.x; });
-    new AddHelper('player Y', function () { if (joueur) return joueur.cursor.position.y; });
+    new AddHelper('player x', function () { if (joueur) return joueur.player.position.x; });
+    new AddHelper('player Y', function () { if (joueur) return joueur.player.position.y; });
+    new AddHelper('Mouse X', function () { if (joueur) return mouseX; });
+    new AddHelper('Mouse Y', function () { if (joueur) return mouseY; });
+    //new AddHelper('Pos', function () { if (joueur) return pos.x; });
 
     var target = new jcv_physics.Point(0, 0);
     var mouseCursor = new jcv_physics.Point(0, 0);
-    var vectorTarget = new jcv_physics.Vector(0, 0);
+
     var distanceMouse = 0;
 
     //La boucle d'animation
@@ -186,14 +220,17 @@
         for (var h in helpers) {
             helpers[h].update();
         }
+
+
         if (joueur) {
             //activact keys
             k.action();
             //camera follow
-            camera.position.x = joueur.player.position.x * 0.96 + joueur.cursor.position.x / 25;
-            camera.position.y = joueur.player.position.y * 0.96 + joueur.cursor.position.y / 25;
+            camera.position.x = joueur.player.position.x*0.80 + joueur.cursor.position.x / 5;
+            //camera.position.x = joueur.player.position.x;
+            camera.position.y = joueur.player.position.y*0.80 + joueur.cursor.position.y / 5;
+            //camera.position.y = joueur.player.position.y;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
-
 
             //flashLight open effect
             for (var socketP in personnages) {
@@ -209,13 +246,14 @@
                         personnages[socketP].player.position.x,
                         personnages[socketP].player.position.y
                     ));
-                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 300);
-                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 300);
+                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 25);
+                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 25);
             }
             //position de la lumiere
-            mouseCursor.x = joueur.player.position.x + mouseX - (window.innerWidth * 0.5);
-            mouseCursor.y = joueur.player.position.y - mouseY + (window.innerHeight * 0.5);
 
+            mouseCursor.x = mouseX;
+            mouseCursor.y = mouseY;
+            var vectorTarget = new jcv_physics.Vector(0, 0);
             vectorTarget.setLength(target.distanceTo(mouseCursor) / precision);
             vectorTarget.setAngle(target.angleTo(mouseCursor));
 
@@ -238,8 +276,22 @@
     }, 50)
     //CONTROLES
     canvas.addEventListener("mousemove", function (e) {
-        mouseX = e.clientX;
-        mouseY = e.clientY;
+        var vector = new THREE.Vector3();
+
+        vector.set(
+            (e.clientX / window.innerWidth) * 2 - 1,
+            - (e.clientY / window.innerHeight) * 2 + 1,
+            0.5);
+
+        vector.unproject(camera);
+
+        var dir = vector.sub(camera.position).normalize();
+
+        var distance = - camera.position.z / dir.z;
+
+        var pos = camera.position.clone().add(dir.multiplyScalar(distance));
+        mouseX = pos.x;
+        mouseY = pos.y;
     });
     var Key = function () {
         this.keyUp = false;
@@ -249,10 +301,10 @@
         //this.reset = function(){this = new Key()}
     }
     Key.prototype.action = function () {
-        if (this.keyUp) joueur.player.position.y += 1.5;
-        if (this.keyDown) joueur.player.position.y -= 1.5;
-        if (this.keyLeft) joueur.player.position.x -= 1.5;
-        if (this.keyRight) joueur.player.position.x += 1.5;
+        if (this.keyUp) joueur.player.position.y += 0.5;
+        if (this.keyDown) joueur.player.position.y -= 0.5;
+        if (this.keyLeft) joueur.player.position.x -= 0.5;
+        if (this.keyRight) joueur.player.position.x += 0.5;
     }
     var k = new Key();
     window.addEventListener("keydown", function (e) {
@@ -273,23 +325,27 @@
             joueur.lightOn = false;
         } else joueur.lightOn = true;
     });
-
+    socket.on('touche', function (data) {
+        var m = new THREE.LineBasicMaterial({
+            color: 0xff0000
+        })
+        var s = new THREE.SphereGeometry(1, 12, 12);
+        var po = new THREE.Mesh(s, m);
+        po.position.x = data.x
+        po.position.y = data.y
+        po.position.z = 3
+        scene.add(po)
+        setTimeout(function(){
+            scene.remove(po);
+        },5000  )
+    });
     window.document.addEventListener('click', function (e) {
         e.preventDefault();
-        vectorShoot = new jcv_physics.Vector(
-            joueur.player.position.x * 0.96 + joueur.cursor.position.x / 25,
-            joueur.player.position.y * 0.96 + joueur.cursor.position.y / 25
-        );
-        var p = new Personnage("test");
-        setTimeout(function () {
-            var data = {
-                x: 0,
-                y: 0,
-                cursorX: 20,
-                cursorY: 20,
-            }
-            p.receive(data);
-            p.remove();
-        }, 5000)
+        socket.emit('fireshoot', {
+            _x: joueur.player.position.x,
+            _y: joueur.player.position.y,
+            x: joueur.cursor.position.x,
+            y: joueur.cursor.position.y,
+        });
     });
 })();

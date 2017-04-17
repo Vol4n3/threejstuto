@@ -1,4 +1,4 @@
-(function(exports) {
+(function (exports) {
     //utils
     class MathPhysics {
 
@@ -33,20 +33,54 @@
     //Point
     class Point extends MathPhysics {
 
-        constructor(x, y) {
+        constructor(x, y, radius) {
             super();
             this.type = "Point";
             this.color = "black";
             this.x = x || 0;
             this.y = y || 0;
-            this.radius = 1;
+            this.radius = radius || 1;
         }
         update() {
 
         }
-        collisionTo(object){
-            if(object.type == "Point"){
-
+        inteceptLineSeg(line) {
+            var a, b, c, d, u1, u2, ret, retP1, retP2, v1, v2;
+            v1 = {};
+            v2 = {};
+            v1.x = line.p2.x - line.p1.x;
+            v1.y = line.p2.y - line.p1.y;
+            v2.x = line.p1.x - this.x;
+            v2.y = line.p1.y - this.y;
+            b = (v1.x * v2.x + v1.y * v2.y);
+            c = 2 * (v1.x * v1.x + v1.y * v1.y);
+            b *= -2;
+            d = Math.sqrt(b * b - 2 * c * (v2.x * v2.x + v2.y * v2.y - this.radius * this.radius));
+            if (isNaN(d)) { // no intercept
+                return false;
+            }
+            u1 = (b - d) / c;  // these represent the unit distance of point one and two on the line
+            u2 = (b + d) / c;
+            retP1 = {};   // return points
+            retP2 = {}
+            ret = []; // return array
+            if (u1 <= 1 && u1 >= 0) {  // add point if on the line segment
+                retP1.x = line.p1.x + v1.x * u1;
+                retP1.y = line.p1.y + v1.y * u1;
+                ret[0] = retP1;
+            }
+            if (u2 <= 1 && u2 >= 0) {  // second add point if on the line segment
+                retP2.x = line.p1.x + v1.x * u2;
+                retP2.y = line.p1.y + v1.y * u2;
+                ret[ret.length] = retP2;
+            }
+            return ret;
+        }
+        collisionTo(object, ctx) {
+            if (object.type == "Point") {
+                return this.distanceTo(object) <= this.radius + object.radius;
+            } else if (object.type == "Segment") {
+                return this.inteceptLineSeg(object);
             }
         }
         translate(vector) {
@@ -69,7 +103,7 @@
         distanceTo(point) {
             if (point.type == "Point") {
                 var dx = point.x - this.x,
-                    dy = point.y - this.y;  
+                    dy = point.y - this.y;
                 return Math.sqrt(dx * dx + dy * dy);
 
             } else {
@@ -79,7 +113,7 @@
         draw(ctx) {
             ctx.beginPath();
             ctx.fillStyle = this.color;
-            ctx.arc(this.x, this.y, 2, 0, Math.PI * 2)
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
             ctx.fill();
         }
     }
@@ -88,32 +122,22 @@
         constructor(p1, p2) {
             super();
             this.type = "Segment";
-            if (p1 && p1.type && p1.type == "Point") {
-
-                this.p1 = p1;
-            } else {
-                this.p1 = new Point();
-            }
-            if (p2 && p2.type && p2.type == "Point") {
-
-                this.p2 = p2;
-            } else {
-                this.p2 = new Point();
-            }
+            this.p1 = p1;
+            this.p2 = p2;
+            this.color = "black";
         }
         getLength() {
             return this.p1.distanceTo(this.p2);
         }
-        getAngleToP1() {
+        getAngleToP2() {
             return this.p1.angleTo(this.p2);
         }
-        setLengthFromP1(length) {
-            
-            this.p1.x = Math.cos(this.getAngleToP1()) * length;
-            this.p1.y = Math.sin(this.getAngleToP1()) * length;
-        }
-        getAngleToP2() {
+        getAngleToP1() {
             return this.p2.angleTo(this.p1);
+        }
+        addLenghtToP1(length) {
+            this.p1.x += Math.cos(this.getAngleToP2()) * length;
+            this.p1.y += Math.sin(this.getAngleToP2()) * length;
         }
         intersectTo(segment) {
             if (segment && segment.type == "Segment") {
@@ -166,10 +190,8 @@
             }
         }
         draw(ctx) {
-            this.p1.update();
-            this.p2.update();
             ctx.beginPath();
-            ctx.strokeStyle = "red";
+            ctx.strokeStyle = this.color;
             ctx.moveTo(this.p1.x, this.p1.y);
             ctx.lineTo(this.p2.x, this.p2.y);
             ctx.stroke();
@@ -195,7 +217,7 @@
         setLength(length) {
             this.x = Math.cos(this.angle) * length;
             this.y = Math.sin(this.angle) * length;
-            this.update()
+            this.update();
         }
         getLength() {
             this.length = Math.sqrt(this.x * this.x + this.y * this.y);
@@ -210,53 +232,31 @@
             this.angle = Math.atan2(this.y, this.x);
             return this.angle;
         }
-        getSegment() {
-            var p1 = new Point();
-            var p2 = new Point(this.x, this.y);
-            return new Segment(p1, p2);
+        getSegment(point) {
+            var p2 = new Point(point.x + this.x, point.y + this.y);
+            return new Segment(point, p2);
         }
         add(vector) {
-            if (vector.type == "Vector") {
-                this.x = this.x + vector.x;
-                this.y = this.y + vector.y;
-                this.update();
-                return this;
-            } else {
-                return false;
-            }
+            this.x = this.x + vector.x;
+            this.y = this.y + vector.y;
+            this.update();
         }
-
         subtract(vector) {
-            if (vector.type == "Vector") {
-                this.x = this.x - vector.x;
-                this.y = this.y - vector.y;
-                this.update();
-                return this;
-            } else {
-                return false;
-            }
+            this.x = this.x - vector.x;
+            this.y = this.y - vector.y;
+            this.update();
         }
 
         multiply(vector) {
-            if (vector.type == "Vector") {
-                this.x = this.x * vector.x;
-                this.y = this.y * vector.y;
-                this.update();
-                return this;
-            } else {
-                return false;
-            }
+            this.x = this.x * vector.x;
+            this.y = this.y * vector.y;
+            this.update();
         }
 
         divide(vector) {
-            if (vector.type == "Vector") {
-                this.x = this.x / vector.x;
-                this.y = this.y / vector.y;
-                this.update();
-                return this;
-            } else {
-                return false;
-            }
+            this.x = this.x / vector.x;
+            this.y = this.y / vector.y;
+            this.update();
         }
     }
     class CircleVector extends MathPhysics {
@@ -312,16 +312,15 @@
     }
     class PhysicPoint extends Point {
 
-        constructor(x, y) {
-            super(x, y);
+        constructor(x, y, r) {
+            super(x, y, r);
             this.velocity = new Vector(0, 0);
             this.friction = new Vector(1, 1);
             this.bounce = 1;
             this.mass = 1;
-
             this.rotation = 0;
             this.color = "black";
-            this.circleMovement = new CircleVector(this.rotation, this.radius);
+            this.circleMovement = new CircleVector(this.rotation, this.r);
             //this.circleMovement.speed = 0.2;
             this.rotateFriction = 1;
         }
@@ -344,7 +343,7 @@
             this.update();
             ctx.beginPath();
             ctx.fillStyle = this.color;
-            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2)
+            ctx.arc(this.x, this.y, this.r, 0, Math.PI * 2)
             ctx.fill();
         }
 
@@ -378,46 +377,46 @@
             ctx.fill();
         }
     }
-    class Particle extends Point{
-        constructor(x,y,z){
-            super(x,y);
+    class Particle extends Point {
+        constructor(x, y, z) {
+            super(x, y);
             this.z = z || 1;
-            this.velocity = new Vector(0,0);
-            this.wind = new Vector(0.0,0.0);
+            this.velocity = new Vector(0, 0);
+            this.wind = new Vector(0.0, 0.0);
             this.speed = 1;
             this.growth = 0;
         }
-         getRadius(){
+        getRadius() {
             return this.z;
         }
     }
-    class LightFlare extends Particle{
-        constructor(x,y,z){
-            super(x,y,z);
+    class LightFlare extends Particle {
+        constructor(x, y, z) {
+            super(x, y, z);
         }
     }
-    class SnowFlake extends Particle{
-        constructor(x,y,z){
-            super(x,y,z);
+    class SnowFlake extends Particle {
+        constructor(x, y, z) {
+            super(x, y, z);
             this.color = "white";
         }
-        update(){
+        update() {
             let randx = (Math.random() * 2) - 1;
             let randy = (Math.random() * 2) - 1;
             let randz = (Math.random() * 2) - 1;
-            this.growth += randz*(this.speed / 6);
-            this.velocity.add(new Vector(randx*0.3,randy*0.3));
+            this.growth += randz * (this.speed / 6);
+            this.velocity.add(new Vector(randx * 0.3, randy * 0.3));
             this.velocity.add(this.wind);
             this.x = this.x + this.velocity.x * this.speed;
             this.y = this.y + this.velocity.y * this.speed;
             this.z += this.growth;
         }
 
-        getColor(){
-            let alpha = 1/(this.z);
+        getColor() {
+            let alpha = 1 / (this.z);
             alpha = alpha > 1 ? 1 : alpha;
             alpha = this.round100(alpha);
-            return "rgba(255,255,255,"+ alpha +")";
+            return "rgba(255,255,255," + alpha + ")";
         }
         /**
          * 
@@ -427,17 +426,17 @@
             this.update();
             this.z = this.z < 1 ? 1 : this.z;
             ctx.beginPath();
-            var gradient = ctx.createRadialGradient(this.x,this.y,this.getRadius()*0.2,this.x,this.y,this.getRadius()*2);
-            gradient.addColorStop(0,this.getColor());
-            gradient.addColorStop(1,"transparent");
+            var gradient = ctx.createRadialGradient(this.x, this.y, this.getRadius() * 0.2, this.x, this.y, this.getRadius() * 2);
+            gradient.addColorStop(0, this.getColor());
+            gradient.addColorStop(1, "transparent");
             ctx.fillStyle = gradient;
             ctx.arc(this.x, this.y, this.getRadius(), 0, Math.PI * 2)
             ctx.fill();
-            if(this.x > ctx.canvas.width || this.y > ctx.canvas.height || this.x < 0 || this.y < 0 || this.z > 50){
+            if (this.x > ctx.canvas.width || this.y > ctx.canvas.height || this.x < 0 || this.y < 0 || this.z > 50) {
                 this.x = Math.random() * ctx.canvas.width;
                 this.y = Math.random() * ctx.canvas.height;
-                this.z =1;
-                this.velocity = new Vector(0,0);
+                this.z = 1;
+                this.velocity = new Vector(0, 0);
                 this.growth = 0;
             }
         }
@@ -445,7 +444,7 @@
     class World {
         constructor(...items) {
             this.items = items || [];
-            this.wind = new Vector(0,0);
+            this.wind = new Vector(0, 0);
             this.speed = 1;
         }
         add(item) {
@@ -468,4 +467,5 @@
     exports.PhysicPoint = PhysicPoint;
     exports.Polygone = Polygone;
     exports.World = World;
+
 })(window.jcv_physics = window.jcv_physics || {})
