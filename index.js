@@ -48,12 +48,13 @@ io.on('connection', function (socket) {
     socket.on('fireshoot', function (bullet) {
         var b = new Segment(new Point(bullet._x, bullet._y), new Point(bullet.x, bullet.y));
         b.setLengthP2(130);
+        b.addAngletoP2(Math.random()*0.4 - 0.2);
         io.emit('shoot',{
             _x : b.p1.x,
             _y : b.p1.y,
             x : b.p2.x,
             y : b.p2.y,
-        })
+        });
         for (let p in personnages) {
             if (p != socket.id) {
                 var persoPos = new Point(personnages[p].x, personnages[p].y, 2.5);
