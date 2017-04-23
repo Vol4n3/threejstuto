@@ -1,4 +1,6 @@
 /// <reference path="../../typings/index.d.ts" />
+/// <reference path="jcv_physics.js" />
+/// <reference path="jcv_sound.js" />
 (function () {
     'use strict';
     /**
@@ -22,9 +24,9 @@
 
     //Creation de la camera
     var aspect = window.innerWidth / window.innerHeight;
-    //var profo = 10;
+
     var camera = new THREE.PerspectiveCamera(100, aspect, 0.1, 1000);
-    //var camera = new THREE.OrthographicCamera(window.innerWidth / - profo, window.innerWidth / profo, window.innerHeight / profo, window.innerHeight / - profo, 1, 1000);
+
     camera.position.set(0, 0, 50);
     camera.lookAt(new THREE.Vector3(0, 0, 0));
 
@@ -41,7 +43,6 @@
 
     //création de la scene en ThreeJS
     var scene = new THREE.Scene();
-
 
     for (var i = 0; i < 50; i++) {
         var size = Math.random() * 5;
@@ -64,7 +65,6 @@
                 color: 0xffffff,
                 transparent: true,
             });
-
             var geometry = new THREE.Geometry();
             geometry.vertices.push(
                 new THREE.Vector3(this._x, this._y, 3),
@@ -78,15 +78,30 @@
             setTimeout(function () {
                 clearInterval(this.effect);
                 scene.remove(this.line);
-            }.bind(this),200)
+            }.bind(this), 200)
         }
     }
+    var akShoot = new jcv_sound.list(
+        {
+            name: 0,
+            url: './sounds/guns/AK-12.1.mp3'
+        },
+        {
+            name: 1,
+            url: './sounds/guns/AK-12.1.mp3'
+        }
+    );
     socket.on('shoot', function (data) {
-        new Bullet(data._x, data._y, data.x, data.y)
+        new Bullet(data._x, data._y, data.x, data.y);
+        akShoot.play(Math.round(Math.random()));
     });
     var personnages = {};
     class Personnage {
         constructor(socket, color) {
+            this.holdFire = false;
+            this.life = 10;
+            this.alive = true;
+            this.rapidFire = 2;
             this.socket = socket;
             this.color = color || Math.random() * 0x777777 + 0x999999;
             this.x = Math.random() * 100;
@@ -107,11 +122,11 @@
             this.light = new THREE.SpotLight(this.color, 1, 40, 1.50, 0.7, 1);
             this.light.castShadow = true;
             this.lightOn = true;
-            this.light.position.set(this.x, this.y, 10);
+            this.light.position.set(this.x, this.y, 3);
             this.light.color.setHex(this.color);
             this.light.shadow.mapSize.width = 2048;
             this.light.shadow.mapSize.height = 2048;
-            this.light.shadow.camera.near = 10;
+            this.light.shadow.camera.near = 4;
             this.light.shadow.camera.far = 40;
             this.light.shadow.camera.fov = 30;
             this.light.target = this.cursor;
@@ -220,15 +235,13 @@
         for (var h in helpers) {
             helpers[h].update();
         }
-
-
         if (joueur) {
             //activact keys
-            k.action();
+            k.action(joueur.player, 0.5);
             //camera follow
-            camera.position.x = joueur.player.position.x*0.80 + joueur.cursor.position.x / 5;
+            camera.position.x = joueur.player.position.x * 0.80 + joueur.cursor.position.x / 5;
             //camera.position.x = joueur.player.position.x;
-            camera.position.y = joueur.player.position.y*0.80 + joueur.cursor.position.y / 5;
+            camera.position.y = joueur.player.position.y * 0.80 + joueur.cursor.position.y / 5;
             //camera.position.y = joueur.player.position.y;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
 
@@ -246,8 +259,8 @@
                         personnages[socketP].player.position.x,
                         personnages[socketP].player.position.y
                     ));
-                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 25);
-                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 25);
+                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 15);
+                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 15);
             }
             //position de la lumiere
 
@@ -270,10 +283,37 @@
         requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate)
+
+    //delay Multiplayer shoot
+    var fireDelay = 0;
     //la boucle Multiplayer
     setInterval(function () {
-        if (joueur) joueur.send();
-    }, 50)
+        if (joueur) {
+            joueur.send();
+
+            if (joueur.holdFire) {
+                fireDelay++;
+                if (joueur.rapidFire == fireDelay) {
+                    fireDelay = 0;
+                    socket.emit('fireshoot', {
+                        _x: joueur.player.position.x,
+                        _y: joueur.player.position.y,
+                        x: joueur.cursor.position.x,
+                        y: joueur.cursor.position.y,
+                    });
+
+                    var sFire = new jcv_physics.Segment(
+                        new jcv_physics.Point(joueur.cursor.position.x, joueur.cursor.position.y),
+                        new jcv_physics.Point(joueur.player.position.x, joueur.player.position.y)
+                    );
+                    sFire.addLengthP2(1);
+                    joueur.player.position.x = sFire.p2.x;
+                    joueur.player.position.y = sFire.p2.y;
+
+                }
+            }
+        }
+    }, 50);
     //CONTROLES
     canvas.addEventListener("mousemove", function (e) {
         var vector = new THREE.Vector3();
@@ -300,11 +340,11 @@
         this.keyRight = false;
         //this.reset = function(){this = new Key()}
     }
-    Key.prototype.action = function () {
-        if (this.keyUp) joueur.player.position.y += 0.5;
-        if (this.keyDown) joueur.player.position.y -= 0.5;
-        if (this.keyLeft) joueur.player.position.x -= 0.5;
-        if (this.keyRight) joueur.player.position.x += 0.5;
+    Key.prototype.action = function (target, speed) {
+        if (this.keyUp) target.position.y += speed;
+        if (this.keyDown) target.position.y -= speed;
+        if (this.keyLeft) target.position.x -= speed;
+        if (this.keyRight) target.position.x += speed;
     }
     var k = new Key();
     window.addEventListener("keydown", function (e) {
@@ -326,26 +366,30 @@
         } else joueur.lightOn = true;
     });
     socket.on('touche', function (data) {
-        var m = new THREE.LineBasicMaterial({
+        var m = new THREE.MeshLambertMaterial({
             color: 0xff0000
         })
-        var s = new THREE.SphereGeometry(1, 12, 12);
+        var s = new THREE.CircleGeometry(1, 6);
         var po = new THREE.Mesh(s, m);
         po.position.x = data.x
         po.position.y = data.y
-        po.position.z = 3
+        po.position.z = 0.1;
         scene.add(po)
-        setTimeout(function(){
+        setTimeout(function () {
             scene.remove(po);
-        },5000  )
+        }, 5000)
+    });
+
+    window.document.addEventListener('mousedown', function (e) {
+        joueur.holdFire = true;
+    });
+    window.document.addEventListener('mouseup', function (e) {
+        joueur.holdFire = false;
     });
     window.document.addEventListener('click', function (e) {
         e.preventDefault();
-        socket.emit('fireshoot', {
-            _x: joueur.player.position.x,
-            _y: joueur.player.position.y,
-            x: joueur.cursor.position.x,
-            y: joueur.cursor.position.y,
-        });
+
+
     });
+
 })();

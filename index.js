@@ -14,6 +14,7 @@ var Segment = require('./class/Segment');
 
 var personnages = {};
 var bullets = [];
+var zombies = [];
 setInterval(function () {
     io.emit('receive_players', personnages);
 }, 50)
@@ -46,7 +47,7 @@ io.on('connection', function (socket) {
     });
     socket.on('fireshoot', function (bullet) {
         var b = new Segment(new Point(bullet._x, bullet._y), new Point(bullet.x, bullet.y));
-        b.setLengthP2(120);
+        b.setLengthP2(130);
         io.emit('shoot',{
             _x : b.p1.x,
             _y : b.p1.y,
@@ -55,7 +56,7 @@ io.on('connection', function (socket) {
         })
         for (let p in personnages) {
             if (p != socket.id) {
-                var persoPos = new Point(personnages[p].x, personnages[p].y, 3);
+                var persoPos = new Point(personnages[p].x, personnages[p].y, 2.5);
                 var colli = [];
                 colli = persoPos.collisionTo(b);
                 if (colli && colli.length > 0) {
