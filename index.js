@@ -9,18 +9,24 @@ server.listen(8081, function () {
 var io = require('socket.io').listen(server);
 
 var Point = require('./class/Point');
+var PhysicPoint = require('./class/PhysicPoint');
 var Vector = require('./class/Vector');
 var Segment = require('./class/Segment');
 
 var personnages = {};
-var bullets = [];
 var zombies = [];
+for(let i= 0 ; i< 20;i++){
+    let rx =Math.random()*1000 -500;
+    let ry =Math.random()*1000 -500;
+    let z = new PhysicPoint(rx,ry,2.5)
+    zombies.push(z);
+}
 setInterval(function () {
-    io.emit('receive_players', personnages);
-}, 50)
+    io.emit('receive_players', personnages,zombies);
+}, 40)
 io.on('connection', function (socket) {
     //connexion du client
-    var color = Math.random() * 0x777777 + 0x999999;
+    var color = 0xffffff;
     socket.emit('player_socket', {
         socketId: socket.id,
         color: color,
@@ -47,8 +53,9 @@ io.on('connection', function (socket) {
     });
     socket.on('fireshoot', function (bullet) {
         var b = new Segment(new Point(bullet._x, bullet._y), new Point(bullet.x, bullet.y));
+        var preci = bullet.accurate / 100;
         b.setLengthP2(130);
-        b.addAngletoP2(Math.random()*0.4 - 0.2);
+        b.addAngletoP2(Math.random()*preci - preci*0.5);
         io.emit('shoot',{
             _x : b.p1.x,
             _y : b.p1.y,

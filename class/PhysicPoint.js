@@ -1,6 +1,7 @@
-var Circle = require('./Circle');
+var Point = require('./Point');
+var Vector = require('./Vector');
 var CircleVector = require('./CircleVector');
-class PhysicCircle extends Circle {
+class PhysicPoint extends Point {
 
     constructor(x, y, r) {
         super(x, y, r);

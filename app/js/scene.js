@@ -84,16 +84,27 @@
     var akShoot = new jcv_sound.list(
         {
             name: 0,
-            url: './sounds/guns/AK-12.1.mp3'
+            url: './sounds/guns/M4A1.1.mp3'
         },
         {
             name: 1,
-            url: './sounds/guns/AK-12.1.mp3'
+            url: './sounds/guns/M4A1.2.mp3'
         }
     );
     socket.on('shoot', function (data) {
         new Bullet(data._x, data._y, data.x, data.y);
-        akShoot.play(Math.round(Math.random()));
+        var distanceShootX = data._x - joueur.player.position.x;
+        var distanceShootY = data._y - joueur.player.position.y;
+        var distanceShoot = distanceShootX + distanceShootY;
+        var pan = distanceShootX / 70;
+        pan = pan > 1 ? 1 : pan;
+        pan = pan < -1 ? -1 : pan;
+        var gain = 1 / (distanceShoot / 20);
+        gain = gain < 0 ? gain * -1 : gain;
+        gain = gain < 0.04 ? 0 : gain;
+        gain = gain > 1 ? 1 : gain;
+        if (gain)
+            akShoot.play(Math.round(Math.random()), gain, pan);
     });
     var personnages = {};
     class Personnage {
@@ -101,11 +112,12 @@
             this.holdFire = false;
             this.life = 10;
             this.alive = true;
-            this.rapidFire = 2;
+            this.rapidFire = 4;
+            this.accurate = 0;
             this.socket = socket;
-            this.color = color || Math.random() * 0x777777 + 0x999999;
-            this.x = Math.random() * 100;
-            this.y = Math.random() * 100;
+            this.color = color || 0xffffff;
+            this.x = Math.random() * 500;
+            this.y = Math.random() * 500;
             var s = new THREE.SphereGeometry(3, 20, 20);
             var wl = new THREE.MeshLambertMaterial({ color: this.color });
             this.player = new THREE.Mesh(s, wl);
@@ -121,7 +133,7 @@
             scene.add(this.cursor);
             this.light = new THREE.SpotLight(this.color, 1, 40, 1.50, 0.7, 1);
             this.light.castShadow = true;
-            this.lightOn = true;
+            this.lightOn = false;
             this.light.position.set(this.x, this.y, 3);
             this.light.color.setHex(this.color);
             this.light.shadow.mapSize.width = 2048;
@@ -200,7 +212,7 @@
     function AddHelper(label, callback, controller, min, max) {
         this.p = document.createElement('p');
         this.label = label;
-        this.callback = callback;
+        this.callback = callback || function(){return ""};
         helper.appendChild(this.p);
         if (controller) {
             this.controller = controller;
@@ -217,11 +229,9 @@
     AddHelper.prototype.update = function () {
         this.p.textContent = this.label + ' : ' + this.callback();
     }
-    new AddHelper('player x', function () { if (joueur) return joueur.player.position.x; });
-    new AddHelper('player Y', function () { if (joueur) return joueur.player.position.y; });
-    new AddHelper('Mouse X', function () { if (joueur) return mouseX; });
-    new AddHelper('Mouse Y', function () { if (joueur) return mouseY; });
-    //new AddHelper('Pos', function () { if (joueur) return pos.x; });
+    new AddHelper('x', function () { return Math.round(joueur.player.position.x); });
+    new AddHelper('Y', function () {  return Math.round(joueur.player.position.y); });
+    new AddHelper('', function () { return !joueur.lightOn ? "Clic droit pour allumer ou éteindre votre torche" : ""; });
 
     var target = new jcv_physics.Point(0, 0);
     var mouseCursor = new jcv_physics.Point(0, 0);
@@ -230,14 +240,10 @@
 
     //La boucle d'animation
     var vectorShoot = new jcv_physics.Vector(0, 0);
-    var precision = 40;
+    var precision = 30;
     function animate() {
-        for (var h in helpers) {
-            helpers[h].update();
-        }
         if (joueur) {
-            //activact keys
-            k.action(joueur.player, 0.5);
+
             //camera follow
             camera.position.x = joueur.player.position.x * 0.80 + joueur.cursor.position.x / 5;
             //camera.position.x = joueur.player.position.x;
@@ -248,8 +254,8 @@
             //flashLight open effect
             for (var socketP in personnages) {
                 if (!personnages[socketP].lightOn) personnages[socketP].light.intensity = 0;
-                if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 1) {
-                    personnages[socketP].light.intensity += 0.002;
+                if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 2) {
+                    personnages[socketP].light.intensity += 0.004;
                 }
                 distanceMouse = new jcv_physics.Point(
                     personnages[socketP].cursor.position.x,
@@ -289,19 +295,31 @@
     //la boucle Multiplayer
     setInterval(function () {
         if (joueur) {
+            for (var h in helpers) {
+                helpers[h].update();
+            }
             joueur.send();
-
+            //activact keys
+            k.action(joueur.player, 2);
+            joueur.player.position.x = joueur.player.position.x > 1000 ? 1000 : joueur.player.position.x;
+            joueur.player.position.x = joueur.player.position.x < -1000 ? -1000 : joueur.player.position.x;
+            joueur.player.position.y = joueur.player.position.y > 1000 ? 1000 : joueur.player.position.y;
+            joueur.player.position.y = joueur.player.position.y < -1000 ? -1000 : joueur.player.position.y;
+            fireDelay++;
+            if (joueur.accurate > 1) joueur.accurate -= 0.5;
             if (joueur.holdFire) {
-                fireDelay++;
-                if (joueur.rapidFire == fireDelay) {
+                if (joueur.rapidFire <= fireDelay) {
+
                     fireDelay = 0;
                     socket.emit('fireshoot', {
                         _x: joueur.player.position.x,
                         _y: joueur.player.position.y,
                         x: joueur.cursor.position.x,
                         y: joueur.cursor.position.y,
+                        accurate: joueur.accurate,
                     });
-
+                    joueur.accurate += 10;
+                    joueur.accurate = joueur.accurate > 50 ? 50 : joueur.accurate;
                     var sFire = new jcv_physics.Segment(
                         new jcv_physics.Point(joueur.cursor.position.x, joueur.cursor.position.y),
                         new jcv_physics.Point(joueur.player.position.x, joueur.player.position.y)
@@ -313,7 +331,7 @@
                 }
             }
         }
-    }, 50);
+    }, 40);
     //CONTROLES
     canvas.addEventListener("mousemove", function (e) {
         var vector = new THREE.Vector3();
@@ -361,9 +379,7 @@
     });
     window.document.addEventListener('contextmenu', function (e) {
         e.preventDefault();
-        if (joueur.light.intensity > 0) {
-            joueur.lightOn = false;
-        } else joueur.lightOn = true;
+        joueur.lightOn = joueur.light.intensity > 0 ? false : true;
     });
     socket.on('touche', function (data) {
         var m = new THREE.MeshLambertMaterial({
@@ -381,7 +397,8 @@
     });
 
     window.document.addEventListener('mousedown', function (e) {
-        joueur.holdFire = true;
+        if (e.which == 1)
+            joueur.holdFire = true;
     });
     window.document.addEventListener('mouseup', function (e) {
         joueur.holdFire = false;

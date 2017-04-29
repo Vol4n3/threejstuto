@@ -1,4 +1,4 @@
-const Circle = require('./Circle');
+const Point = require('./Point');
 const Vector = require('./Vector');
 class CircleVector {
     constructor(angle, radius) {
@@ -6,7 +6,7 @@ class CircleVector {
         this.radius = radius || 1;
         this.speed = 0;
         this.center = new Point(0, 0);
-        this.tanPoint = new Circle(
+        this.tanPoint = new Point(
             Math.cos(this.angle) * this.radius,
             Math.sin(this.angle) * this.radius
         );

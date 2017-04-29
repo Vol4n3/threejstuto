@@ -24,8 +24,8 @@
             var s = new Sound(sound.url);
             this.sounds[sound.name];
         }
-        play(name){
-            this.sounds[name].play(true);
+        play(name,volume,stereo,isPaused){
+            this.sounds[name].play(volume,stereo,isPaused);
         }
     }
     class Sound {
@@ -52,16 +52,19 @@
             }.bind(this));
             req.send();
         }
-        play(atStart) {
+        play(volume,stereo,isPaused) {
             if (this.ready) {
                 this.source = context.createBufferSource();
                 this.gainNode = context.createGain();
+                this.panNode = context.createStereoPanner();
                 this.source.buffer = this.audioBuffer;
                 this.source.connect(this.gainNode);
-                this.gainNode.connect(context.destination);
-                this.gainNode.gain.value = 0.2;
+                this.gainNode.connect(this.panNode);
+                this.panNode.connect(context.destination);
+                this.gainNode.gain.value = volume || 1;
+                this.panNode.pan.value =stereo || 0; 
                 this.playing = true;
-                if (this.pausedAt && !atStart) {
+                if (this.pausedAt && isPaused) {
                     this.startedAt = Date.now() - this.pausedAt;
                     this.source.start(0, this.pausedAt / 1000);
                 }
