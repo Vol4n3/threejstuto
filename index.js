@@ -15,14 +15,14 @@ var Segment = require('./class/Segment');
 
 var personnages = {};
 var zombies = [];
-for(let i= 0 ; i< 20;i++){
-    let rx =Math.random()*1000 -500;
-    let ry =Math.random()*1000 -500;
-    let z = new PhysicPoint(rx,ry,2.5)
+for (let i = 0; i < 20; i++) {
+    let rx = Math.random() * 1000 - 500;
+    let ry = Math.random() * 1000 - 500;
+    let z = new PhysicPoint(rx, ry, 2.5)
     zombies.push(z);
 }
 setInterval(function () {
-    io.emit('receive_players', personnages,zombies);
+    io.emit('receive_players', { players: personnages, zombies: zombies });
 }, 40)
 io.on('connection', function (socket) {
     //connexion du client
@@ -31,12 +31,14 @@ io.on('connection', function (socket) {
         socketId: socket.id,
         color: color,
     });
-    for (var i in personnages) {
+    for (let i in personnages) {
         socket.emit('new_player', {
             socketId: i,
             color: personnages[i].color
         });
     }
+    socket.emit('new_zombie', zombies);
+
     personnages[socket.id] = {};
     socket.on('personnage_position', function (data) {
         personnages[socket.id] = data;
@@ -54,13 +56,15 @@ io.on('connection', function (socket) {
     socket.on('fireshoot', function (bullet) {
         var b = new Segment(new Point(bullet._x, bullet._y), new Point(bullet.x, bullet.y));
         var preci = bullet.accurate / 100;
-        b.setLengthP2(130);
-        b.addAngletoP2(Math.random()*preci - preci*0.5);
-        io.emit('shoot',{
-            _x : b.p1.x,
-            _y : b.p1.y,
-            x : b.p2.x,
-            y : b.p2.y,
+        b.setLengthP2(bullet.range);
+        b.addAngletoP2(Math.random() * preci - preci * 0.5);        
+        io.emit('shoot', {
+            _x: b.p1.x,
+            _y: b.p1.y,
+            x: b.p2.x,
+            y: b.p2.y,
+            type : bullet.type,
+            color : bullet.color
         });
         for (let p in personnages) {
             if (p != socket.id) {

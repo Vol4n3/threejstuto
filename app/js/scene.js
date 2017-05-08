@@ -3,30 +3,44 @@
 /// <reference path="jcv_sound.js" />
 (function () {
     'use strict';
-    /**
-     * @type {SocketIO} socket
-     */
     var socket = io();
-    var mouseX = 0,
-        mouseY = 0;
+    var personnages = {};
+    var zombies = [];
+    var joueur;
+    var helper = document.getElementById('helper');
+    var helpers = [];
+    var target = new jcv_physics.Point(0, 0);
+    var mouseCursor = new jcv_physics.Point(0, 0);
+    var distanceMouse = 0;
+    var vectorShoot = new jcv_physics.Vector(0, 0);
+    var mouseSmooth = 15;
+    var ListSound = new jcv_sound.list(
+        { name: 'hurt_1', url: './sounds/hurt/SFX_NEW_PED_DSCREAM4.wav' },
+        { name: 'hurt_2', url: './sounds/hurt/SFX_NEW_PED_DSCREAM3.wav' },
+        { name: 'hurt_3', url: './sounds/hurt/SFX_NEW_PED_DSCREAM2.wav' },
+        { name: 'hurt_4', url: './sounds/hurt/SFX_NEW_PED_DSCREAM1.wav' },
+        { name: '44magnum_1', url: './sounds/guns/44_Magnum.1.mp3' },
+        { name: '44magnum_2', url: './sounds/guns/44_Magnum.2.mp3' },
+        { name: 'aek971_1', url: './sounds/guns/AEK-971.1.mp3' },
+        { name: 'aek971_2', url: './sounds/guns/AEK-971.2.mp3' },
+        { name: 'ak12_1', url: './sounds/guns/AK-12.1.mp3' },
+        { name: 'ak12_2', url: './sounds/guns/AK-12.2.mp3' },
+        { name: 'an94_1', url: './sounds/guns/AN-94.1.mp3' },
+        { name: 'an94_2', url: './sounds/guns/AN-94.2.mp3' }
+    );
     /**
      * Récupere la scene
      *@type {HTMLCanvasElement}
      */
     var canvas = document.getElementById('scene');
-
     //executer le rendu dans le canvas
-    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true });
+    var renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, gammaInput: true, gammaOutput: true });
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-    renderer.gammaInput = true;
-    renderer.gammaOutput = true;
 
     //Creation de la camera
     var aspect = window.innerWidth / window.innerHeight;
-
     var camera = new THREE.PerspectiveCamera(100, aspect, 0.1, 1000);
-
     camera.position.set(0, 0, 50);
     camera.lookAt(new THREE.Vector3(0, 0, 0));
 
@@ -44,6 +58,21 @@
     //création de la scene en ThreeJS
     var scene = new THREE.Scene();
 
+    //Le Sol
+    var texture = new THREE.TextureLoader().load('images/stone.png', function (texture) {
+        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+        texture.repeat.set(600, 600);
+    });
+    var groundMat = new THREE.MeshPhongMaterial({
+        map: texture,
+        specular: 0x555555,
+    });
+    var groundGeo = new THREE.PlaneGeometry(4000, 4000);
+    var ground = new THREE.Mesh(groundGeo, groundMat);
+    ground.doubleSided = true;
+    ground.receiveShadow = true;
+    scene.add(ground);
+    /*
     for (var i = 0; i < 50; i++) {
         var size = Math.random() * 5;
         var Boxgeometry = new THREE.BoxGeometry(size + 1, size + 1, Math.random() * 30 + 10);
@@ -54,70 +83,30 @@
         cube.castShadow = true;
         cube.receiveShadow = true;
         scene.add(cube);
-    }
-    class Bullet {
-        constructor(_x, _y, x, y) {
-            this._x = _x;
-            this._y = _y;
-            this.x = x;
-            this.y = y;
-            var material = new THREE.MeshBasicMaterial({
-                color: 0xffffff,
-                transparent: true,
-            });
-            var geometry = new THREE.Geometry();
-            geometry.vertices.push(
-                new THREE.Vector3(this._x, this._y, 3),
-                new THREE.Vector3(this.x, this.y, 3)
-            );
-            this.line = new THREE.Line(geometry, material);
-            scene.add(this.line);
-            this.effect = setInterval(function () {
-                this.line.material.opacity -= 0.1;
-            }.bind(this), 20);
-            setTimeout(function () {
-                clearInterval(this.effect);
-                scene.remove(this.line);
-            }.bind(this), 200)
-        }
-    }
-    var akShoot = new jcv_sound.list(
-        {
-            name: 0,
-            url: './sounds/guns/M4A1.1.mp3'
-        },
-        {
-            name: 1,
-            url: './sounds/guns/M4A1.2.mp3'
-        }
-    );
-    socket.on('shoot', function (data) {
-        new Bullet(data._x, data._y, data.x, data.y);
-        var distanceShootX = data._x - joueur.player.position.x;
-        var distanceShootY = data._y - joueur.player.position.y;
-        var distanceShoot = distanceShootX + distanceShootY;
-        var pan = distanceShootX / 70;
-        pan = pan > 1 ? 1 : pan;
-        pan = pan < -1 ? -1 : pan;
-        var gain = 1 / (distanceShoot / 20);
-        gain = gain < 0 ? gain * -1 : gain;
-        gain = gain < 0.04 ? 0 : gain;
-        gain = gain > 1 ? 1 : gain;
-        if (gain)
-            akShoot.play(Math.round(Math.random()), gain, pan);
-    });
-    var personnages = {};
-    class Personnage {
-        constructor(socket, color) {
-            this.holdFire = false;
-            this.life = 10;
-            this.alive = true;
-            this.rapidFire = 4;
+    }*/
+
+    /**
+     * Les classes
+     */
+    class Weapon {
+        constructor() {
+            this.type = '44magnum';
+            this.ammo = 6;
             this.accurate = 0;
-            this.socket = socket;
+            this.color = 0xffffff;
+            this.recoil = 0.5;
+            this.rapidFire = 5;
+            this.stability = 10;
+            this.range = 130;
+            this.damage = 1;
+        }
+    }
+    class Entity {
+        constructor(color) {
+            this.life = 5;
             this.color = color || 0xffffff;
-            this.x = Math.random() * 500;
-            this.y = Math.random() * 500;
+            this.x = Math.random() * 50;
+            this.y = Math.random() * 50;
             var s = new THREE.SphereGeometry(3, 20, 20);
             var wl = new THREE.MeshLambertMaterial({ color: this.color });
             this.player = new THREE.Mesh(s, wl);
@@ -127,10 +116,25 @@
             this.player.castShadow = true;
             this.player.receiveShadow = true;
             scene.add(this.player);
+        }
+        isDead() {
+            if (this.life <= 0) {
+                return true;
+            } else {
+                return false;
+            }
+        }
+    }
+    class Personnage extends Entity {
+        constructor(socket, color) {
+            super(color);
+            this.weapon = new Weapon();
+            this.holdFire = false;
             this.cursor = new THREE.Object3D();
             this.cursor.position.x = this.x;
             this.cursor.position.y = this.y;
             scene.add(this.cursor);
+            this.socket = socket;
             this.light = new THREE.SpotLight(this.color, 1, 40, 1.50, 0.7, 1);
             this.light.castShadow = true;
             this.lightOn = false;
@@ -171,8 +175,7 @@
             this.lightOn = data.lightOn;
         }
     }
-    //création du joueur
-    var joueur;
+
     socket.on('player_socket', function (data) {
         joueur = new Personnage(data.socketId, data.color);
     })
@@ -184,78 +187,118 @@
     });
     //reception des données multiplayer
     socket.on('receive_players', function (data) {
-        for (var pls in data) {
+        var players = data.players
+        for (var pls in players) {
             if (pls != joueur.socket) {
-                personnages[pls].receive(data[pls]);
+                personnages[pls].receive(players[pls]);
             }
         }
     });
-    //Le Sol
-    var texture = new THREE.TextureLoader().load('images/stone.png', function (texture) {
-        texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
-        texture.repeat.set(600, 600);
+    class Bullet {
+        constructor(_x, _y, x, y, color) {
+            this.color = color || 0xffffff
+            this._x = _x;
+            this._y = _y;
+            this.x = x;
+            this.y = y;
+            var material = new THREE.MeshBasicMaterial({
+                color: this.color,
+                transparent: true,
+            });
+            var geometry = new THREE.Geometry();
+            geometry.vertices.push(
+                new THREE.Vector3(this._x, this._y, 3),
+                new THREE.Vector3(this.x, this.y, 3)
+            );
+            this.line = new THREE.Line(geometry, material);
+            scene.add(this.line);
+            this.effect = setInterval(function () {
+                this.line.material.opacity -= 0.1;
+            }.bind(this), 20);
+            setTimeout(function () {
+                clearInterval(this.effect);
+                scene.remove(this.line);
+            }.bind(this), 200)
+        }
+    }
+    function playSuroundSound(name, distanceShootX, distanceShootY) {
+        var distanceShoot = distanceShootX + distanceShootY;
+        var pan = distanceShootX / 70;
+        pan = pan > 1 ? 1 : pan;
+        pan = pan < -1 ? -1 : pan;
+        var gain = 1 / (distanceShoot / 20);
+        gain = gain < 0 ? gain * -1 : gain;
+        gain = gain < 0.04 ? 0 : gain;
+        gain = gain > 0.6 ? 0.6 : gain;
+        if (gain)
+            ListSound.play(name, gain, pan);
+    }
+    socket.on('shoot', function (data) {
+        new Bullet(data._x, data._y, data.x, data.y, data.color);
+        let DSX = data._x - joueur.player.position.x;
+        let DSY = data._y - joueur.player.position.y;
+        playSuroundSound(data.type + '_' + Math.round(Math.random() + 1), DSX, DSY);
     });
-    var groundMat = new THREE.MeshPhongMaterial({
-        map: texture,
-        specular: 0x555555,
+    socket.on('touche', function (data) {
+        var m = new THREE.MeshLambertMaterial({
+            color: 0xff0000
+        })
+        var s = new THREE.CircleGeometry(1, 6);
+        var po = new THREE.Mesh(s, m);
+        po.position.x = data.x
+        po.position.y = data.y
+        po.position.z = 0.1;
+        scene.add(po);
+        let DSX = data.x - joueur.player.position.x;
+        let DSY = data.y - joueur.player.position.y;
+        playSuroundSound('hurt_' + Math.round(Math.random() * 3 + 1), DSX, DSY);
+        setTimeout(function () {
+            scene.remove(po);
+        }, 6000);
     });
-    var groundGeo = new THREE.PlaneGeometry(4000, 4000);
-    var ground = new THREE.Mesh(groundGeo, groundMat);
-    ground.doubleSided = true;
-    ground.receiveShadow = true;
-    scene.add(ground);
 
     //HELPERS
-    var helper = document.getElementById('helper');
-    var helpers = [];
-
-    function AddHelper(label, callback, controller, min, max) {
-        this.p = document.createElement('p');
-        this.label = label;
-        this.callback = callback || function(){return ""};
-        helper.appendChild(this.p);
-        if (controller) {
-            this.controller = controller;
-            var input = document.createElement('input');
-            input.type = 'range';
-            input.min = min;
-            input.max = max;
-            input.addEventListener('change', controller);
-            input.addEventListener('input', controller);
-            helper.appendChild(input);
+    class Helper {
+        constructor(label, callback, controller, min, max) {
+            this.p = document.createElement('p');
+            this.label = label;
+            this.callback = callback || function () { return "" };
+            helper.appendChild(this.p);
+            if (controller) {
+                this.controller = controller;
+                var input = document.createElement('input');
+                input.type = 'range';
+                input.min = min;
+                input.max = max;
+                input.addEventListener('change', controller);
+                input.addEventListener('input', controller);
+                helper.appendChild(input);
+            }
+            helpers.push(this);
         }
-        helpers.push(this);
+        update() {
+            this.p.textContent = this.label + ' : ' + this.callback();
+        }
     }
-    AddHelper.prototype.update = function () {
-        this.p.textContent = this.label + ' : ' + this.callback();
-    }
-    new AddHelper('x', function () { return Math.round(joueur.player.position.x); });
-    new AddHelper('Y', function () {  return Math.round(joueur.player.position.y); });
-    new AddHelper('', function () { return !joueur.lightOn ? "Clic droit pour allumer ou éteindre votre torche" : ""; });
-
-    var target = new jcv_physics.Point(0, 0);
-    var mouseCursor = new jcv_physics.Point(0, 0);
-
-    var distanceMouse = 0;
+    new Helper('x', function () { return Math.round(joueur.player.position.x); });
+    new Helper('Y', function () { return Math.round(joueur.player.position.y); });
+    new Helper('', function () { return !joueur.lightOn ? "Clic droit pour allumer ou éteindre votre torche" : ""; });
 
     //La boucle d'animation
-    var vectorShoot = new jcv_physics.Vector(0, 0);
-    var precision = 30;
     function animate() {
-        if (joueur) {
 
+        if (joueur) {
+            //flashLight open effect
             //camera follow
             camera.position.x = joueur.player.position.x * 0.80 + joueur.cursor.position.x / 5;
             //camera.position.x = joueur.player.position.x;
             camera.position.y = joueur.player.position.y * 0.80 + joueur.cursor.position.y / 5;
             //camera.position.y = joueur.player.position.y;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
-
-            //flashLight open effect
             for (var socketP in personnages) {
                 if (!personnages[socketP].lightOn) personnages[socketP].light.intensity = 0;
-                if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 2) {
-                    personnages[socketP].light.intensity += 0.004;
+                if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 3) {
+                    personnages[socketP].light.intensity += 0.05;
                 }
                 distanceMouse = new jcv_physics.Point(
                     personnages[socketP].cursor.position.x,
@@ -265,27 +308,14 @@
                         personnages[socketP].player.position.x,
                         personnages[socketP].player.position.y
                     ));
-                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 15);
-                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 15);
+                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 60);
+                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 20);
             }
-            //position de la lumiere
-
-            mouseCursor.x = mouseX;
-            mouseCursor.y = mouseY;
-            var vectorTarget = new jcv_physics.Vector(0, 0);
-            vectorTarget.setLength(target.distanceTo(mouseCursor) / precision);
-            vectorTarget.setAngle(target.angleTo(mouseCursor));
-
-            if (target.distanceTo(mouseCursor) > 1) target.translate(vectorTarget);
-
-            joueur.cursor.position.x = target.x;
-            joueur.cursor.position.y = target.y;
-
             joueur.light.position.x = joueur.player.position.x;
             joueur.light.position.y = joueur.player.position.y;
-            //rendu de la scene et de la camera
-            renderer.render(scene, camera);
         }
+        //rendu de la scene et de la camera
+        renderer.render(scene, camera);
         requestAnimationFrame(animate);
     }
     requestAnimationFrame(animate)
@@ -298,6 +328,13 @@
             for (var h in helpers) {
                 helpers[h].update();
             }
+            var vectorTarget = new jcv_physics.Vector(0, 0);
+            vectorTarget.setLength(target.distanceTo(mouseCursor) / mouseSmooth);
+            vectorTarget.setAngle(target.angleTo(mouseCursor));
+            if (target.distanceTo(mouseCursor) > 1) target.translate(vectorTarget);
+            joueur.cursor.position.x = target.x;
+            joueur.cursor.position.y = target.y;
+
             joueur.send();
             //activact keys
             k.action(joueur.player, 2);
@@ -306,28 +343,29 @@
             joueur.player.position.y = joueur.player.position.y > 1000 ? 1000 : joueur.player.position.y;
             joueur.player.position.y = joueur.player.position.y < -1000 ? -1000 : joueur.player.position.y;
             fireDelay++;
-            if (joueur.accurate > 1) joueur.accurate -= 0.5;
+            if (joueur.weapon.accurate > 1) joueur.weapon.accurate -= 0.5;
             if (joueur.holdFire) {
-                if (joueur.rapidFire <= fireDelay) {
-
+                if (joueur.weapon.rapidFire <= fireDelay) {
                     fireDelay = 0;
                     socket.emit('fireshoot', {
                         _x: joueur.player.position.x,
                         _y: joueur.player.position.y,
                         x: joueur.cursor.position.x,
                         y: joueur.cursor.position.y,
-                        accurate: joueur.accurate,
+                        accurate: joueur.weapon.accurate,
+                        color: joueur.weapon.color,
+                        type: joueur.weapon.type,
+                        range: joueur.weapon.range,
                     });
-                    joueur.accurate += 10;
-                    joueur.accurate = joueur.accurate > 50 ? 50 : joueur.accurate;
+                    joueur.weapon.accurate += joueur.weapon.stability;
+                    joueur.weapon.accurate = joueur.weapon.accurate > 50 ? 50 : joueur.weapon.accurate;
                     var sFire = new jcv_physics.Segment(
                         new jcv_physics.Point(joueur.cursor.position.x, joueur.cursor.position.y),
                         new jcv_physics.Point(joueur.player.position.x, joueur.player.position.y)
                     );
-                    sFire.addLengthP2(1);
+                    sFire.addLengthP2(joueur.weapon.recoil);
                     joueur.player.position.x = sFire.p2.x;
                     joueur.player.position.y = sFire.p2.y;
-
                 }
             }
         }
@@ -348,8 +386,8 @@
         var distance = - camera.position.z / dir.z;
 
         var pos = camera.position.clone().add(dir.multiplyScalar(distance));
-        mouseX = pos.x;
-        mouseY = pos.y;
+        mouseCursor.x = pos.x;
+        mouseCursor.y = pos.y;
     });
     var Key = function () {
         this.keyUp = false;
@@ -381,20 +419,7 @@
         e.preventDefault();
         joueur.lightOn = joueur.light.intensity > 0 ? false : true;
     });
-    socket.on('touche', function (data) {
-        var m = new THREE.MeshLambertMaterial({
-            color: 0xff0000
-        })
-        var s = new THREE.CircleGeometry(1, 6);
-        var po = new THREE.Mesh(s, m);
-        po.position.x = data.x
-        po.position.y = data.y
-        po.position.z = 0.1;
-        scene.add(po)
-        setTimeout(function () {
-            scene.remove(po);
-        }, 5000)
-    });
+
 
     window.document.addEventListener('mousedown', function (e) {
         if (e.which == 1)
@@ -405,8 +430,6 @@
     });
     window.document.addEventListener('click', function (e) {
         e.preventDefault();
-
-
     });
 
 })();
