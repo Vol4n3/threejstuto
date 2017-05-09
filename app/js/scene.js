@@ -15,6 +15,7 @@
     var vectorShoot = new jcv_physics.Vector(0, 0);
     var mouseSmooth = 15;
     var ListSound = new jcv_sound.list(
+        { name: 'reload', url: './sounds/guns/reload.mp3' },
         { name: 'hurt_1', url: './sounds/hurt/SFX_NEW_PED_DSCREAM4.wav' },
         { name: 'hurt_2', url: './sounds/hurt/SFX_NEW_PED_DSCREAM3.wav' },
         { name: 'hurt_3', url: './sounds/hurt/SFX_NEW_PED_DSCREAM2.wav' },
@@ -389,8 +390,12 @@
                 if (joueur.weapon.rapidFire <= fireDelay) {
                     joueur.weapon.ammo--;
                     if (joueur.weapon.ammo <= 0) {
+                        
                         joueur.weapon.ammo = joueur.weapon.maxAmmo;
                         fireDelay = -joueur.weapon.reload;
+                        setTimeout(function(){
+                            ListSound.play("reload", 1, 0);
+                        },100) 
                     } else {
                         fireDelay = 0;
                     }
