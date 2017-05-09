@@ -25,6 +25,12 @@ class Segment {
         this.p2.x = this.p1.x + Math.cos(angle) * length;
         this.p2.y = this.p1.y + Math.sin(angle) * length;
     }
+    addLengthP2(length) {
+        var angle = this.getAngleToP2();
+        var newLength = this.getLength() + length;
+        this.p2.x = this.p1.x + Math.cos(angle) * newLength;
+        this.p2.y = this.p1.y + Math.sin(angle) * newLength;
+    }
     intersectTo(segment) {
         if (segment && segment.type == "Segment") {
             var A1 = this.p2.y - this.p1.y,

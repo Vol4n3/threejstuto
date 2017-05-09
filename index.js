@@ -12,6 +12,7 @@ var Point = require('./class/Point');
 var PhysicPoint = require('./class/PhysicPoint');
 var Vector = require('./class/Vector');
 var Segment = require('./class/Segment');
+var Personnage = require('./class/Personnage');
 
 var personnages = {};
 var zombies = [];
@@ -22,8 +23,16 @@ for (let i = 0; i < 20; i++) {
     zombies.push(z);
 }
 setInterval(function () {
-    io.emit('receive_players', { players: personnages, zombies: zombies });
-}, 40)
+    //todo
+    for(let z in zombies){
+        let targets = [];
+        for(let s in personnages){
+            let direction = new Segment(personnages[s],zombies[z]);
+            direction.addLengthP2(-0.5);
+        }
+    }
+    io.emit('receive_data_loop', { players: personnages, zombies: zombies });
+}, 30)
 io.on('connection', function (socket) {
     //connexion du client
     var color = 0xffffff;
@@ -39,9 +48,9 @@ io.on('connection', function (socket) {
     }
     socket.emit('new_zombie', zombies);
 
-    personnages[socket.id] = {};
+    personnages[socket.id] = new Personnage(Math.random()*50,Math.random()*50,0,0,false,color);
     socket.on('personnage_position', function (data) {
-        personnages[socket.id] = data;
+        personnages[socket.id].receive(data);
     })
     socket.broadcast.emit('new_player', {
         socketId: socket.id,

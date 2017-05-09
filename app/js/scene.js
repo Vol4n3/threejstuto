@@ -89,9 +89,11 @@
      * Les classes
      */
     class Weapon {
-        constructor() {
+        constructor(type) {
             this.type = '44magnum';
             this.ammo = 6;
+            this.maxAmmo = 6;
+            this.reload = 30;
             this.accurate = 0;
             this.color = 0xffffff;
             this.recoil = 0.5;
@@ -100,22 +102,25 @@
             this.range = 130;
             this.damage = 1;
         }
+        load(type) {
+            //todo:
+        }
     }
     class Entity {
-        constructor(color) {
+        constructor(color, x, y) {
             this.life = 5;
             this.color = color || 0xffffff;
-            this.x = Math.random() * 50;
-            this.y = Math.random() * 50;
+            this.x = x || Math.random() * 50;
+            this.y = y || Math.random() * 50;
             var s = new THREE.SphereGeometry(3, 20, 20);
             var wl = new THREE.MeshLambertMaterial({ color: this.color });
-            this.player = new THREE.Mesh(s, wl);
-            this.player.position.x = this.x;
-            this.player.position.y = this.y;
-            this.player.position.z = 1.5
-            this.player.castShadow = true;
-            this.player.receiveShadow = true;
-            scene.add(this.player);
+            this.mesh = new THREE.Mesh(s, wl);
+            this.mesh.position.x = this.x;
+            this.mesh.position.y = this.y;
+            this.mesh.position.z = 1.5
+            this.mesh.castShadow = true;
+            this.mesh.receiveShadow = true;
+            scene.add(this.mesh);
         }
         isDead() {
             if (this.life <= 0) {
@@ -123,6 +128,15 @@
             } else {
                 return false;
             }
+        }
+    }
+    class Zombie extends Entity {
+        constructor(x, y) {
+            super(0x00ff00, x, y);
+        }
+        receive(data) {
+            this.mesh.position.x = data.x;
+            this.mesh.position.y = data.y;        
         }
     }
     class Personnage extends Entity {
@@ -152,13 +166,13 @@
         remove() {
             scene.remove(this.light);
             scene.remove(this.cursor);
-            scene.remove(this.player);
+            scene.remove(this.mesh);
             delete personnages[this.socket];
         }
         send() {
             socket.emit('personnage_position', {
-                x: this.player.position.x,
-                y: this.player.position.y,
+                x: this.mesh.position.x,
+                y: this.mesh.position.y,
                 cursorX: this.cursor.position.x,
                 cursorY: this.cursor.position.y,
                 lightOn: this.lightOn,
@@ -166,8 +180,8 @@
             });
         }
         receive(data) {
-            this.player.position.x = data.x;
-            this.player.position.y = data.y;
+            this.mesh.position.x = data.x;
+            this.mesh.position.y = data.y;
             this.light.position.x = data.x;
             this.light.position.y = data.y;
             this.cursor.position.x = data.cursorX;
@@ -175,7 +189,12 @@
             this.lightOn = data.lightOn;
         }
     }
-
+    socket.on('new_zombie', function (data) {
+        for (let z in data) {
+            let zombie = new Zombie(data[z].x, data[z].y);
+            zombies.push(zombie);
+        }
+    })
     socket.on('player_socket', function (data) {
         joueur = new Personnage(data.socketId, data.color);
     })
@@ -186,12 +205,15 @@
         personnages[data.socketId].remove();
     });
     //reception des données multiplayer
-    socket.on('receive_players', function (data) {
-        var players = data.players
-        for (var pls in players) {
-            if (pls != joueur.socket) {
-                personnages[pls].receive(players[pls]);
+    socket.on('receive_data_loop', function (data) {
+        var players = data.players;
+        for (let sock in players) {
+            if (sock != joueur.socket) {
+                personnages[sock].receive(players[sock]);
             }
+        }
+        for (let z in zombies){
+            zombies[z].receive(data.zombies[z]);
         }
     });
     class Bullet {
@@ -235,8 +257,8 @@
     }
     socket.on('shoot', function (data) {
         new Bullet(data._x, data._y, data.x, data.y, data.color);
-        let DSX = data._x - joueur.player.position.x;
-        let DSY = data._y - joueur.player.position.y;
+        let DSX = data._x - joueur.mesh.position.x;
+        let DSY = data._y - joueur.mesh.position.y;
         playSuroundSound(data.type + '_' + Math.round(Math.random() + 1), DSX, DSY);
     });
     socket.on('touche', function (data) {
@@ -249,8 +271,8 @@
         po.position.y = data.y
         po.position.z = 0.1;
         scene.add(po);
-        let DSX = data.x - joueur.player.position.x;
-        let DSY = data.y - joueur.player.position.y;
+        let DSX = data.x - joueur.mesh.position.x;
+        let DSY = data.y - joueur.mesh.position.y;
         playSuroundSound('hurt_' + Math.round(Math.random() * 3 + 1), DSX, DSY);
         setTimeout(function () {
             scene.remove(po);
@@ -280,8 +302,8 @@
             this.p.textContent = this.label + ' : ' + this.callback();
         }
     }
-    new Helper('x', function () { return Math.round(joueur.player.position.x); });
-    new Helper('Y', function () { return Math.round(joueur.player.position.y); });
+    new Helper('x', function () { return Math.round(joueur.mesh.position.x); });
+    new Helper('Y', function () { return Math.round(joueur.mesh.position.y); });
     new Helper('', function () { return !joueur.lightOn ? "Clic droit pour allumer ou éteindre votre torche" : ""; });
 
     //La boucle d'animation
@@ -290,12 +312,13 @@
         if (joueur) {
             //flashLight open effect
             //camera follow
-            camera.position.x = joueur.player.position.x * 0.80 + joueur.cursor.position.x / 5;
-            //camera.position.x = joueur.player.position.x;
-            camera.position.y = joueur.player.position.y * 0.80 + joueur.cursor.position.y / 5;
-            //camera.position.y = joueur.player.position.y;
+            camera.position.x = joueur.mesh.position.x * 0.80 + joueur.cursor.position.x / 5;
+            //camera.position.x = joueur.mesh.position.x;
+            camera.position.y = joueur.mesh.position.y * 0.80 + joueur.cursor.position.y / 5;
+            //camera.position.y = joueur.mesh.position.y;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
             for (var socketP in personnages) {
+
                 if (!personnages[socketP].lightOn) personnages[socketP].light.intensity = 0;
                 if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 3) {
                     personnages[socketP].light.intensity += 0.05;
@@ -305,14 +328,14 @@
                     personnages[socketP].cursor.position.y
                 ).distanceTo(
                     new jcv_physics.Point(
-                        personnages[socketP].player.position.x,
-                        personnages[socketP].player.position.y
+                        personnages[socketP].mesh.position.x,
+                        personnages[socketP].mesh.position.y
                     ));
                 personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 60);
                 personnages[socketP].light.distance = 40 * (1 + distanceMouse / 20);
             }
-            joueur.light.position.x = joueur.player.position.x;
-            joueur.light.position.y = joueur.player.position.y;
+            joueur.light.position.x = joueur.mesh.position.x;
+            joueur.light.position.y = joueur.mesh.position.y;
         }
         //rendu de la scene et de la camera
         renderer.render(scene, camera);
@@ -323,8 +346,10 @@
     //delay Multiplayer shoot
     var fireDelay = 0;
     //la boucle Multiplayer
+    var interact = 0;
     setInterval(function () {
-        if (joueur) {
+        if (joueur && interact > 0) {
+            interact--;
             for (var h in helpers) {
                 helpers[h].update();
             }
@@ -337,19 +362,27 @@
 
             joueur.send();
             //activact keys
-            k.action(joueur.player, 2);
-            joueur.player.position.x = joueur.player.position.x > 1000 ? 1000 : joueur.player.position.x;
-            joueur.player.position.x = joueur.player.position.x < -1000 ? -1000 : joueur.player.position.x;
-            joueur.player.position.y = joueur.player.position.y > 1000 ? 1000 : joueur.player.position.y;
-            joueur.player.position.y = joueur.player.position.y < -1000 ? -1000 : joueur.player.position.y;
+            k.action(joueur.mesh, 2);
+            joueur.mesh.position.x = joueur.mesh.position.x > 1000 ? 1000 : joueur.mesh.position.x;
+            joueur.mesh.position.x = joueur.mesh.position.x < -1000 ? -1000 : joueur.mesh.position.x;
+            joueur.mesh.position.y = joueur.mesh.position.y > 1000 ? 1000 : joueur.mesh.position.y;
+            joueur.mesh.position.y = joueur.mesh.position.y < -1000 ? -1000 : joueur.mesh.position.y;
             fireDelay++;
             if (joueur.weapon.accurate > 1) joueur.weapon.accurate -= 0.5;
             if (joueur.holdFire) {
+                interact = 30;
                 if (joueur.weapon.rapidFire <= fireDelay) {
-                    fireDelay = 0;
+                    joueur.weapon.ammo--;
+                    if(joueur.weapon.ammo <= 0){
+                        joueur.weapon.ammo = joueur.weapon.maxAmmo;
+                        fireDelay = -joueur.weapon.reload;
+                    }else{
+                        fireDelay = 0;
+                    }
+                    
                     socket.emit('fireshoot', {
-                        _x: joueur.player.position.x,
-                        _y: joueur.player.position.y,
+                        _x: joueur.mesh.position.x,
+                        _y: joueur.mesh.position.y,
                         x: joueur.cursor.position.x,
                         y: joueur.cursor.position.y,
                         accurate: joueur.weapon.accurate,
@@ -361,19 +394,19 @@
                     joueur.weapon.accurate = joueur.weapon.accurate > 50 ? 50 : joueur.weapon.accurate;
                     var sFire = new jcv_physics.Segment(
                         new jcv_physics.Point(joueur.cursor.position.x, joueur.cursor.position.y),
-                        new jcv_physics.Point(joueur.player.position.x, joueur.player.position.y)
+                        new jcv_physics.Point(joueur.mesh.position.x, joueur.mesh.position.y)
                     );
                     sFire.addLengthP2(joueur.weapon.recoil);
-                    joueur.player.position.x = sFire.p2.x;
-                    joueur.player.position.y = sFire.p2.y;
+                    joueur.mesh.position.x = sFire.p2.x;
+                    joueur.mesh.position.y = sFire.p2.y;
                 }
             }
         }
-    }, 40);
+    }, 30);
     //CONTROLES
     canvas.addEventListener("mousemove", function (e) {
+        interact = 30;
         var vector = new THREE.Vector3();
-
         vector.set(
             (e.clientX / window.innerWidth) * 2 - 1,
             - (e.clientY / window.innerHeight) * 2 + 1,
@@ -404,31 +437,37 @@
     }
     var k = new Key();
     window.addEventListener("keydown", function (e) {
+        interact = 30;
         if (e.keyCode == 38 || e.keyCode == 90) k.keyUp = true
         if (e.keyCode == 40 || e.keyCode == 83) k.keyDown = true
         if (e.keyCode == 37 || e.keyCode == 81) k.keyLeft = true
         if (e.keyCode == 39 || e.keyCode == 68) k.keyRight = true
     });
     window.addEventListener("keyup", function (e) {
+        interact = 30;
         if (e.keyCode == 38 || e.keyCode == 90) k.keyUp = false
         if (e.keyCode == 40 || e.keyCode == 83) k.keyDown = false
         if (e.keyCode == 37 || e.keyCode == 81) k.keyLeft = false
         if (e.keyCode == 39 || e.keyCode == 68) k.keyRight = false
     });
     window.document.addEventListener('contextmenu', function (e) {
+        interact = 30;
         e.preventDefault();
         joueur.lightOn = joueur.light.intensity > 0 ? false : true;
     });
 
 
     window.document.addEventListener('mousedown', function (e) {
+        interact = 30;
         if (e.which == 1)
             joueur.holdFire = true;
     });
     window.document.addEventListener('mouseup', function (e) {
+        interact = 30;
         joueur.holdFire = false;
     });
     window.document.addEventListener('click', function (e) {
+        interact = 30;
         e.preventDefault();
     });
 

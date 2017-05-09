@@ -58,7 +58,6 @@ class Point {
         var dx = point.x - this.x,
             dy = point.y - this.y;
         return Math.sqrt(dx * dx + dy * dy);
-
     }
 }
 module.exports = Point;

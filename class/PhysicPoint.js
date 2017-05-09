@@ -12,7 +12,6 @@ class PhysicPoint extends Point {
         this.rotation = 0;
         this.color = "black";
         this.circleMovement = new CircleVector(this.rotation, this.radius);
-
         this.rotateFriction = 1;
     }
     update() {
