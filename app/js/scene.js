@@ -108,10 +108,11 @@
     }
     class Entity {
         constructor(color, x, y) {
+            this.maxlife = 10;
             this.life = 5;
             this.color = color || 0xffffff;
-            this.x = x || Math.random() * 50;
-            this.y = y || Math.random() * 50;
+            this.x = x || Math.random() * 500;
+            this.y = y || Math.random() * 500;
             var s = new THREE.SphereGeometry(3, 20, 20);
             var wl = new THREE.MeshLambertMaterial({ color: this.color });
             this.mesh = new THREE.Mesh(s, wl);
@@ -129,6 +130,11 @@
                 return false;
             }
         }
+        respawn() {
+            this.mesh.position.x = Math.random() * 500;
+            this.mesh.position.y = Math.random() * 500;
+
+        }
     }
     class Zombie extends Entity {
         constructor(x, y) {
@@ -136,7 +142,7 @@
         }
         receive(data) {
             this.mesh.position.x = data.x;
-            this.mesh.position.y = data.y;        
+            this.mesh.position.y = data.y;
         }
     }
     class Personnage extends Entity {
@@ -194,10 +200,13 @@
             let zombie = new Zombie(data[z].x, data[z].y);
             zombies.push(zombie);
         }
-    })
+    });
+    socket.on('zombie_atack', function (data) {
+        joueur.life--;
+    });
     socket.on('player_socket', function (data) {
         joueur = new Personnage(data.socketId, data.color);
-    })
+    });
     socket.on('new_player', function (data) {
         new Personnage(data.socketId, data.color);
     });
@@ -212,7 +221,7 @@
                 personnages[sock].receive(players[sock]);
             }
         }
-        for (let z in zombies){
+        for (let z in zombies) {
             zombies[z].receive(data.zombies[z]);
         }
     });
@@ -308,7 +317,6 @@
 
     //La boucle d'animation
     function animate() {
-
         if (joueur) {
             //flashLight open effect
             //camera follow
@@ -345,10 +353,17 @@
 
     //delay Multiplayer shoot
     var fireDelay = 0;
-    //la boucle Multiplayer
+    //timestamp interaction for afk
     var interact = 0;
+
+    var mouseVector = new THREE.Vector3();
+    //la boucle Multiplayer
     setInterval(function () {
         if (joueur && interact > 0) {
+            if (joueur.isDead()) {
+                joueur.life = joueur.maxlife;
+                joueur.respawn();
+            }
             interact--;
             for (var h in helpers) {
                 helpers[h].update();
@@ -362,7 +377,7 @@
 
             joueur.send();
             //activact keys
-            k.action(joueur.mesh, 2);
+            k.action(joueur.mesh, 1);
             joueur.mesh.position.x = joueur.mesh.position.x > 1000 ? 1000 : joueur.mesh.position.x;
             joueur.mesh.position.x = joueur.mesh.position.x < -1000 ? -1000 : joueur.mesh.position.x;
             joueur.mesh.position.y = joueur.mesh.position.y > 1000 ? 1000 : joueur.mesh.position.y;
@@ -373,13 +388,13 @@
                 interact = 30;
                 if (joueur.weapon.rapidFire <= fireDelay) {
                     joueur.weapon.ammo--;
-                    if(joueur.weapon.ammo <= 0){
+                    if (joueur.weapon.ammo <= 0) {
                         joueur.weapon.ammo = joueur.weapon.maxAmmo;
                         fireDelay = -joueur.weapon.reload;
-                    }else{
+                    } else {
                         fireDelay = 0;
                     }
-                    
+
                     socket.emit('fireshoot', {
                         _x: joueur.mesh.position.x,
                         _y: joueur.mesh.position.y,
@@ -404,20 +419,16 @@
         }
     }, 30);
     //CONTROLES
+
     canvas.addEventListener("mousemove", function (e) {
         interact = 30;
-        var vector = new THREE.Vector3();
-        vector.set(
+        mouseVector.set(
             (e.clientX / window.innerWidth) * 2 - 1,
             - (e.clientY / window.innerHeight) * 2 + 1,
             0.5);
-
-        vector.unproject(camera);
-
-        var dir = vector.sub(camera.position).normalize();
-
+        mouseVector.unproject(camera);
+        var dir = mouseVector.sub(camera.position).normalize();
         var distance = - camera.position.z / dir.z;
-
         var pos = camera.position.clone().add(dir.multiplyScalar(distance));
         mouseCursor.x = pos.x;
         mouseCursor.y = pos.y;
