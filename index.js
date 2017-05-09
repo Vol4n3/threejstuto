@@ -53,9 +53,9 @@ setInterval(function () {
         }
         for (let z2 in zombies) {
             if (z2 != z) {
-                let distanceZombies = new Segment(zombies[z2], zombies[z]);
+                var distanceZombies = new Segment(zombies[z2], zombies[z]);
                 if (distanceZombies.getLength() - 5 < 0) {
-                    distanceZombies.setLengthP2(6)
+                    distanceZombies.setLengthP2(6);
                 }
             }
         }
@@ -63,6 +63,7 @@ setInterval(function () {
             dt.addLengthP2(-1);
         } else if (dt && collisionToPersonnages) {
             dt.setLengthP2(6)
+            console.log(dt);
         }
     }
     io.emit('receive_data_loop', { players: personnages, zombies: zombies });
