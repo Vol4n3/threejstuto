@@ -63,7 +63,7 @@ setInterval(function () {
             dt.addLengthP2(-1);
         } else if (dt && collisionToPersonnages) {
             dt.setLengthP2(6)
-            console.log(dt);
+            //console.log(dt);
         }
     }
     io.emit('receive_data_loop', { players: personnages, zombies: zombies });
