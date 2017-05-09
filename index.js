@@ -17,18 +17,18 @@ var Personnage = require('./class/Personnage');
 var personnages = {};
 var zombies = [];
 function getRandomZombieSpawnCoordo() {
-    let randSignX = Math.round(Math.random());
-    if (randSignX == 0) randSignX = -1;
-    let randSignY = Math.round(Math.random());
-    if (randSignY == 0) randSignY = -1;
-    let rx = (Math.random() * 500 + 1000) * randSignX;
-    let ry = (Math.random() * 500 + 1000) * randSignY;
+    let rSX = Math.round(Math.random());
+    if (rSX == 0) rSX = -1;
+    let rSY = Math.round(Math.random());
+    if (rSY == 0) rSY = -1;
+    let rx = (Math.random() * 1000 + 1000) * rSX;
+    let ry = (Math.random() * 1000 + 1000) * rSY;
     return {
         x: rx,
         y: ry,
     }
 }
-for (let i = 0; i < 100; i++) {
+for (let i = 0; i < 50; i++) {
     let coo = getRandomZombieSpawnCoordo();
     let z = new PhysicPoint(coo.x, coo.y, 2.5);
     zombies.push(z);
@@ -60,7 +60,7 @@ setInterval(function () {
             }
         }
         if (dt && !collisionToPersonnages) {
-            dt.addLengthP2(-1);
+            dt.addLengthP2(-0.7);
         } else if (dt && collisionToPersonnages) {
             dt.setLengthP2(6)
             //console.log(dt);
@@ -116,7 +116,7 @@ io.on('connection', function (socket) {
                 let collision = [];
                 collision = persoPos.collisionTo(b);
                 if (collision && collision.length > 0) {
-                    io.emit('touche', collision[0]);
+                    io.emit('hit_player', collision[0]);
                 }
             }
         }
@@ -127,7 +127,7 @@ io.on('connection', function (socket) {
                 let coo = getRandomZombieSpawnCoordo();
                 zombies[z].x = coo.x;
                 zombies[z].y = coo.y;
-                io.emit('touche', collision[0]);
+                io.emit('hit_zombie', collision[0]);
             }
         }
     });

@@ -7,6 +7,8 @@
     var personnages = {};
     var zombies = [];
     var joueur;
+    var player_socket;
+    var player_color;
     var helper = document.getElementById('helper');
     var helpers = [];
     var target = new jcv_physics.Point(0, 0);
@@ -20,6 +22,10 @@
         { name: 'hurt_2', url: './sounds/hurt/SFX_NEW_PED_DSCREAM3.wav' },
         { name: 'hurt_3', url: './sounds/hurt/SFX_NEW_PED_DSCREAM2.wav' },
         { name: 'hurt_4', url: './sounds/hurt/SFX_NEW_PED_DSCREAM1.wav' },
+        { name: 'zomb_1', url: './sounds/zombies/zombie1.mp3' },
+        { name: 'zomb_2', url: './sounds/zombies/zombie2.mp3' },
+        { name: 'zomb_3', url: './sounds/zombies/zombie3.mp3' },
+        { name: 'zomb_4', url: './sounds/zombies/zombie4.mp3' },
         { name: '44magnum_1', url: './sounds/guns/44_Magnum.1.mp3' },
         { name: '44magnum_2', url: './sounds/guns/44_Magnum.2.mp3' },
         { name: 'aek971_1', url: './sounds/guns/AEK-971.1.mp3' },
@@ -91,13 +97,13 @@
      */
     class Weapon {
         constructor(type) {
-            this.type = '44magnum';
-            this.ammo = 6;
-            this.maxAmmo = 6;
+            this.type = 'ak12';
+            this.ammo = 20;
+            this.maxAmmo = 20;
             this.reload = 30;
             this.accurate = 0;
             this.color = 0xffffff;
-            this.recoil = 0.5;
+            this.recoil = 0.6;
             this.rapidFire = 5;
             this.stability = 10;
             this.range = 130;
@@ -206,6 +212,8 @@
         joueur.life--;
     });
     socket.on('player_socket', function (data) {
+        player_socket = data.socketId;
+        player_color = data.color;
         joueur = new Personnage(data.socketId, data.color);
     });
     socket.on('new_player', function (data) {
@@ -216,15 +224,18 @@
     });
     //reception des données multiplayer
     socket.on('receive_data_loop', function (data) {
-        var players = data.players;
-        for (let sock in players) {
-            if (sock != joueur.socket) {
-                personnages[sock].receive(players[sock]);
+        if (joueur) {
+            var players = data.players;
+            for (let sock in players) {
+                if (sock != joueur.socket) {
+                    personnages[sock].receive(players[sock]);
+                }
+            }
+            for (let z in zombies) {
+                zombies[z].receive(data.zombies[z]);
             }
         }
-        for (let z in zombies) {
-            zombies[z].receive(data.zombies[z]);
-        }
+
     });
     class Bullet {
         constructor(_x, _y, x, y, color) {
@@ -271,9 +282,9 @@
         let DSY = data._y - joueur.mesh.position.y;
         playSuroundSound(data.type + '_' + Math.round(Math.random() + 1), DSX, DSY);
     });
-    socket.on('touche', function (data) {
+    function hit(data, color, sound) {
         var m = new THREE.MeshLambertMaterial({
-            color: 0xff0000
+            color: color
         })
         var s = new THREE.CircleGeometry(1, 6);
         var po = new THREE.Mesh(s, m);
@@ -283,10 +294,16 @@
         scene.add(po);
         let DSX = data.x - joueur.mesh.position.x;
         let DSY = data.y - joueur.mesh.position.y;
-        playSuroundSound('hurt_' + Math.round(Math.random() * 3 + 1), DSX, DSY);
+        playSuroundSound(sound + Math.round(Math.random() * 3 + 1), DSX, DSY);
         setTimeout(function () {
             scene.remove(po);
-        }, 6000);
+        }, 10000);
+    }
+    socket.on('hit_zombie', function (data) {
+        hit(data, 0x00ff00, 'zomb_');
+    });
+    socket.on('hit_player', function (data) {
+        hit(data, 0xff0000, 'hurt_');
     });
 
     //HELPERS
@@ -390,12 +407,12 @@
                 if (joueur.weapon.rapidFire <= fireDelay) {
                     joueur.weapon.ammo--;
                     if (joueur.weapon.ammo <= 0) {
-                        
+
                         joueur.weapon.ammo = joueur.weapon.maxAmmo;
                         fireDelay = -joueur.weapon.reload;
-                        setTimeout(function(){
+                        setTimeout(function () {
                             ListSound.play("reload", 1, 0);
-                        },100) 
+                        }, 100)
                     } else {
                         fireDelay = 0;
                     }
