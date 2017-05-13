@@ -18,14 +18,14 @@ class Personnage extends PhysicPoint {
         this.lightOn = data.lightOn;
         this.color = data.color;
     }
-    getData(){
+    getData() {
         return {
-                x: this.x,
-                y: this.y,
-                cursorX: this.cursorX,
-                cursorY: this.cursorY,
-                lightOn: this.lightOn,
-                color: this.color,
+            x: this.x,
+            y: this.y,
+            cursorX: this.cursorX,
+            cursorY: this.cursorY,
+            lightOn: this.lightOn,
+            color: this.color,
         }
     }
 }

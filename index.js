@@ -13,36 +13,22 @@ var PhysicPoint = require('./class/PhysicPoint');
 var Vector = require('./class/Vector');
 var Segment = require('./class/Segment');
 var Personnage = require('./class/Personnage');
+var Zombie = require('./class/Zombie');
 
 var personnages = {};
 var zombies = [];
-function getRandomZombieSpawnCoordo() {
-    let rSX = Math.round(Math.random());
-    if (rSX == 0) rSX = -1;
-    let rSY = Math.round(Math.random());
-    if (rSY == 0) rSY = -1;
-    let rx = (Math.random() * 1000 + 1000) * rSX;
-    let ry = (Math.random() * 1000 + 1000) * rSY;
-    return {
-        x: rx,
-        y: ry,
-    }
-}
 for (let i = 0; i < 50; i++) {
-    let coo = getRandomZombieSpawnCoordo();
-    let z = new PhysicPoint(coo.x, coo.y, 2.5);
+    let z = new Zombie();
     zombies.push(z);
 }
 setInterval(function () {
     for (let z in zombies) {
         let dt;
-        let collisionToPersonnages = false;
         for (let s in personnages) {
             let direction = new Segment(personnages[s], zombies[z]);
             if ((direction.getLength() - 5) < 0) {
-                collisionToPersonnages = true;
+                direction.setLengthP2(6)
                 io.to(s).emit('zombie_atack');
-                break;
             }
             if (!dt) {
                 dt = direction;
@@ -59,11 +45,8 @@ setInterval(function () {
                 }
             }
         }
-        if (dt && !collisionToPersonnages) {
+        if (dt) {
             dt.addLengthP2(-0.7);
-        } else if (dt && collisionToPersonnages) {
-            dt.setLengthP2(6)
-            //console.log(dt);
         }
     }
     io.emit('receive_data_loop', { players: personnages, zombies: zombies });
@@ -117,18 +100,30 @@ io.on('connection', function (socket) {
                 collision = persoPos.collisionTo(b);
                 if (collision && collision.length > 0) {
                     io.emit('hit_player', collision[0]);
+                    io.to(p).emit('player_atack',{
+                        damage : bullet.damage
+                    });
                 }
             }
         }
+        let dz;
         for (let z in zombies) {
             let collision = []
             collision = zombies[z].collisionTo(b);
             if (collision && collision.length > 0) {
-                let coo = getRandomZombieSpawnCoordo();
-                zombies[z].x = coo.x;
-                zombies[z].y = coo.y;
-                io.emit('hit_zombie', collision[0]);
+                let dir_zombie_bullet = new Segment(new Point(bullet._x, bullet._y), zombies[z]);
+                if (!dz) {
+                    dz = dir_zombie_bullet;
+                }
+                else if (dir_zombie_bullet.getLength() < dz.getLength()) {
+                    dz = dir_zombie_bullet;
+                }
             }
+        }
+        if (dz) {
+            io.emit('hit_zombie', dz.p2);
+            dz.addLengthP2(2);
+            dz.p2.take(bullet.damage);
         }
     });
 

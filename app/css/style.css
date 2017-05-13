@@ -17,3 +17,12 @@ canvas{
     top: 0;
     left: 0;
 }
+#heart{
+        position: absolute;
+            bottom: 0;
+                left: 0;
+}
+#heart>img{
+    height: 24px;
+    margin: 5px;
+}

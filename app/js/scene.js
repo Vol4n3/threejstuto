@@ -22,6 +22,7 @@
         { name: 'hurt_2', url: './sounds/hurt/SFX_NEW_PED_DSCREAM3.wav' },
         { name: 'hurt_3', url: './sounds/hurt/SFX_NEW_PED_DSCREAM2.wav' },
         { name: 'hurt_4', url: './sounds/hurt/SFX_NEW_PED_DSCREAM1.wav' },
+        { name: 'atack_1', url: './sounds/zombies/zombie-attack-one.wav' },
         { name: 'zomb_1', url: './sounds/zombies/zombie1.mp3' },
         { name: 'zomb_2', url: './sounds/zombies/zombie2.mp3' },
         { name: 'zomb_3', url: './sounds/zombies/zombie3.mp3' },
@@ -115,7 +116,7 @@
     }
     class Entity {
         constructor(color, x, y) {
-            this.maxlife = 10;
+            this.maxlife = 5;
             this.life = 5;
             this.color = color || 0xffffff;
             this.x = x || Math.random() * 500;
@@ -129,18 +130,35 @@
             this.mesh.castShadow = true;
             this.mesh.receiveShadow = true;
             scene.add(this.mesh);
+            this.showLife();
         }
-        isDead() {
+        take(damage) {
+            this.life -= damage;
+            this.checkIsAlive();
+            this.showLife();
+        }
+        checkIsAlive() {
             if (this.life <= 0) {
-                return true;
-            } else {
-                return false;
+                this.life = this.maxlife;
+                this.showLife();
+                this.respawn();
             }
         }
         respawn() {
             this.mesh.position.x = Math.random() * 500;
             this.mesh.position.y = Math.random() * 500;
-
+        }
+        showLife(){
+            var hearts = document.getElementById('heart');
+            while(hearts.firstChild){
+                hearts.removeChild(hearts.firstChild);
+            }
+            for(let i = 0; i < this.life; i++){
+                let heart = document.createElement('img');
+                heart.src = "images/heart.png";
+                hearts.appendChild(heart);
+            }
+            
         }
     }
     class Zombie extends Entity {
@@ -208,8 +226,20 @@
             zombies.push(zombie);
         }
     });
+    var can_take_damage = true;
     socket.on('zombie_atack', function (data) {
-        joueur.life--;
+        if (can_take_damage) {
+            joueur.take(1);
+            ListSound.play("atack_1", 1, 0);
+            can_take_damage = false;
+            setTimeout(function () {
+                can_take_damage = true;
+            }, 300);
+        }
+
+    });
+    socket.on('player_atack',function(data){
+        joueur.take(data.damage);
     });
     socket.on('player_socket', function (data) {
         player_socket = data.socketId;
@@ -286,7 +316,7 @@
         var m = new THREE.MeshLambertMaterial({
             color: color
         })
-        var s = new THREE.CircleGeometry(1, 6);
+        var s = new THREE.CircleGeometry(1.2, 8);
         var po = new THREE.Mesh(s, m);
         po.position.x = data.x
         po.position.y = data.y
@@ -378,10 +408,6 @@
     //la boucle Multiplayer
     setInterval(function () {
         if (joueur && interact > 0) {
-            if (joueur.isDead()) {
-                joueur.life = joueur.maxlife;
-                joueur.respawn();
-            }
             interact--;
             for (var h in helpers) {
                 helpers[h].update();
@@ -426,6 +452,7 @@
                         color: joueur.weapon.color,
                         type: joueur.weapon.type,
                         range: joueur.weapon.range,
+                        damage: joueur.weapon.damage
                     });
                     joueur.weapon.accurate += joueur.weapon.stability;
                     joueur.weapon.accurate = joueur.weapon.accurate > 50 ? 50 : joueur.weapon.accurate;
