@@ -314,7 +314,7 @@
         var gain = 1 / (distanceShoot / 20);
         gain = gain < 0 ? gain * -1 : gain;
         gain = gain < 0.04 ? 0 : gain;
-        gain = gain > 0.6 ? 0.6 : gain;
+        gain = gain > 0.3 ? 0.3 : gain;
         if (gain)
             ListSound.play(name, gain, pan);
     }
