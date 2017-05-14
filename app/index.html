@@ -1,25 +1,30 @@
 <!DOCTYPE html>
 <html lang="fr">
-    <head>
-        <title>Scene 1</title>
-        <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-            <link rel="stylesheet" type="text/css" href="https://necolas.github.io/normalize.css/7.0.0/normalize.css ">
-        <link href="css/style.css" rel="stylesheet">
-        <script defer src="/socket.io/socket.io.js"></script>
-        <script defer src="js/three.min.js"></script>
-        <script defer src="js/jcv_sound.js"></script>
-        <script defer src="js/jcv_physics.js"></script>
-        <script defer src="js/scene.js"></script>
-        <!--<script defer src="js/test.js"></script>-->
-    </head>
-    <body>
-        <canvas id="scene"></canvas>
-        <div id="helper">
 
+<head>
+    <title>Scene 1</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link rel="stylesheet" type="text/css" href="https://necolas.github.io/normalize.css/7.0.0/normalize.css ">
+    <link href="css/style.css" rel="stylesheet">
+    <script defer src="/socket.io/socket.io.js"></script>
+    <script defer src="js/three.min.js"></script>
+    <script defer src="js/jcv_sound.js"></script>
+    <script defer src="js/jcv_physics.js"></script>
+    <script defer src="js/scene.js"></script>
+    <!--<script defer src="js/test.js"></script>-->
+</head>
+
+<body>
+    <canvas id="scene"></canvas>
+    <div id="helper"></div>
+    <div id="heart"></div>
+    <div id="home">
+        <div class="modal">
+            <h1>Zomb in the darkio</h1>
+            <button type="button" id="launch">Rejoindre la partie</button>
         </div>
-        <div id="heart">
-            
-        </div>
-    </body>
+    </div>
+</body>
+
 </html>

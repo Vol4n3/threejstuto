@@ -25,16 +25,18 @@ setInterval(function () {
     for (let z in zombies) {
         let dt;
         for (let s in personnages) {
-            let direction = new Segment(personnages[s], zombies[z]);
-            if ((direction.getLength() - 5) < 0) {
-                direction.setLengthP2(6)
-                io.to(s).emit('zombie_atack');
-            }
-            if (!dt) {
-                dt = direction;
-            }
-            else if (direction.getLength() < dt.getLength()) {
-                dt = direction;
+            if(personnages[s].isAlive){
+                let direction = new Segment(personnages[s], zombies[z]);
+                if ((direction.getLength() - 5) < 0) {
+                    direction.setLengthP2(6)
+                    io.to(s).emit('zombie_atack');
+                }
+                if (!dt) {
+                    dt = direction;
+                }
+                else if (direction.getLength() < dt.getLength()) {
+                    dt = direction;
+                }
             }
         }
         for (let z2 in zombies) {

@@ -3,10 +3,12 @@ class Zombie extends PhysicPoint {
     constructor() {
         super(0, 0, 2.5);
         this.pv = 2;
+         this.pvMax = 2;
         this.setNewSpawn();
     }
     checkIsAlive() {
         if (this.pv <= 0) {
+            this.pv = this.pvMax;
             this.setNewSpawn();
         }
     }

@@ -16,6 +16,9 @@
     var distanceMouse = 0;
     var vectorShoot = new jcv_physics.Vector(0, 0);
     var mouseSmooth = 15;
+    var music = new jcv_sound.load('./sounds/ProjectZomboid-WhatWasLost.mp3',function(){
+        music.play(0.1,0)
+    });
     var ListSound = new jcv_sound.list(
         { name: 'reload', url: './sounds/guns/reload.mp3' },
         { name: 'hurt_1', url: './sounds/hurt/SFX_NEW_PED_DSCREAM4.wav' },
@@ -130,36 +133,9 @@
             this.mesh.castShadow = true;
             this.mesh.receiveShadow = true;
             scene.add(this.mesh);
-            this.showLife();
+
         }
-        take(damage) {
-            this.life -= damage;
-            this.checkIsAlive();
-            this.showLife();
-        }
-        checkIsAlive() {
-            if (this.life <= 0) {
-                this.life = this.maxlife;
-                this.showLife();
-                this.respawn();
-            }
-        }
-        respawn() {
-            this.mesh.position.x = Math.random() * 500;
-            this.mesh.position.y = Math.random() * 500;
-        }
-        showLife(){
-            var hearts = document.getElementById('heart');
-            while(hearts.firstChild){
-                hearts.removeChild(hearts.firstChild);
-            }
-            for(let i = 0; i < this.life; i++){
-                let heart = document.createElement('img');
-                heart.src = "images/heart.png";
-                hearts.appendChild(heart);
-            }
-            
-        }
+
     }
     class Zombie extends Entity {
         constructor(x, y) {
@@ -191,8 +167,11 @@
             this.light.shadow.camera.far = 40;
             this.light.shadow.camera.fov = 30;
             this.light.target = this.cursor;
+            this.isAlive = false;
             scene.add(this.light);
             personnages[this.socket] = this;
+            this.showLife();
+            this.send();
         }
         remove() {
             scene.remove(this.light);
@@ -208,6 +187,7 @@
                 cursorY: this.cursor.position.y,
                 lightOn: this.lightOn,
                 color: this.color,
+                isAlive: this.isAlive
             });
         }
         receive(data) {
@@ -218,6 +198,38 @@
             this.cursor.position.x = data.cursorX;
             this.cursor.position.y = data.cursorY;
             this.lightOn = data.lightOn;
+            this.isAlive = data.isAlive;
+        }
+        take(damage) {
+            this.life -= damage;
+            this.checkIsAlive();
+            this.showLife();
+        }
+        checkIsAlive() {
+            if (this.life <= 0) {
+                this.life = this.maxlife;
+                this.showLife();
+                this.respawn();
+                this.isAlive =false;
+                this.send();
+                document.getElementById('home').style.display = "flex";
+            }
+        }
+        respawn() {
+            this.mesh.position.x = Math.random() * 500;
+            this.mesh.position.y = Math.random() * 500;
+        }
+        showLife() {
+            var hearts = document.getElementById('heart');
+            while (hearts.firstChild) {
+                hearts.removeChild(hearts.firstChild);
+            }
+            for (let i = 0; i < this.life; i++) {
+                let heart = document.createElement('img');
+                heart.src = "images/heart.png";
+                hearts.appendChild(heart);
+            }
+
         }
     }
     socket.on('new_zombie', function (data) {
@@ -238,7 +250,7 @@
         }
 
     });
-    socket.on('player_atack',function(data){
+    socket.on('player_atack', function (data) {
         joueur.take(data.damage);
     });
     socket.on('player_socket', function (data) {
@@ -365,7 +377,7 @@
 
     //La boucle d'animation
     function animate() {
-        if (joueur) {
+        if (joueur && joueur.isAlive) {
             //flashLight open effect
             //camera follow
             camera.position.x = joueur.mesh.position.x * 0.80 + joueur.cursor.position.x / 5;
@@ -374,21 +386,22 @@
             //camera.position.y = joueur.mesh.position.y;
             camera.lookAt(new THREE.Vector3(camera.position.x, camera.position.y, 0));
             for (var socketP in personnages) {
-
-                if (!personnages[socketP].lightOn) personnages[socketP].light.intensity = 0;
-                if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 3) {
-                    personnages[socketP].light.intensity += 0.05;
+                if (personnages[socketP].isAlive) {
+                    if (!personnages[socketP].lightOn) personnages[socketP].light.intensity = 0;
+                    if (personnages[socketP].lightOn && personnages[socketP].light.intensity < 3) {
+                        personnages[socketP].light.intensity += 0.05;
+                    }
+                    distanceMouse = new jcv_physics.Point(
+                        personnages[socketP].cursor.position.x,
+                        personnages[socketP].cursor.position.y
+                    ).distanceTo(
+                        new jcv_physics.Point(
+                            personnages[socketP].mesh.position.x,
+                            personnages[socketP].mesh.position.y
+                        ));
+                    personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 60);
+                    personnages[socketP].light.distance = 40 * (1 + distanceMouse / 20);
                 }
-                distanceMouse = new jcv_physics.Point(
-                    personnages[socketP].cursor.position.x,
-                    personnages[socketP].cursor.position.y
-                ).distanceTo(
-                    new jcv_physics.Point(
-                        personnages[socketP].mesh.position.x,
-                        personnages[socketP].mesh.position.y
-                    ));
-                personnages[socketP].light.angle = 1.5 / (1 + distanceMouse / 60);
-                personnages[socketP].light.distance = 40 * (1 + distanceMouse / 20);
             }
             joueur.light.position.x = joueur.mesh.position.x;
             joueur.light.position.y = joueur.mesh.position.y;
@@ -407,7 +420,7 @@
     var mouseVector = new THREE.Vector3();
     //la boucle Multiplayer
     setInterval(function () {
-        if (joueur && interact > 0) {
+        if (joueur && interact > 0 && joueur.isAlive) {
             interact--;
             for (var h in helpers) {
                 helpers[h].update();
@@ -470,6 +483,7 @@
     //CONTROLES
 
     canvas.addEventListener("mousemove", function (e) {
+
         interact = 30;
         mouseVector.set(
             (e.clientX / window.innerWidth) * 2 - 1,
@@ -511,24 +525,34 @@
         if (e.keyCode == 39 || e.keyCode == 68) k.keyRight = false
     });
     window.document.addEventListener('contextmenu', function (e) {
-        interact = 30;
-        e.preventDefault();
-        joueur.lightOn = joueur.light.intensity > 0 ? false : true;
+        if (joueur && joueur.isAlive) {
+            interact = 30;
+            e.preventDefault();
+            joueur.lightOn = joueur.light.intensity > 0 ? false : true;
+        }
     });
-
-
+    document.getElementById('launch').addEventListener('click', function () {
+        joueur.isAlive = true;
+        document.getElementById('home').style.display = "none";
+    });
     window.document.addEventListener('mousedown', function (e) {
-        interact = 30;
-        if (e.which == 1)
-            joueur.holdFire = true;
+        if (joueur && joueur.isAlive) {
+            interact = 30;
+            if (e.which == 1)
+                joueur.holdFire = true;
+        }
     });
     window.document.addEventListener('mouseup', function (e) {
-        interact = 30;
-        joueur.holdFire = false;
+        if (joueur && joueur.isAlive) {
+            interact = 30;
+            joueur.holdFire = false;
+        }
     });
     window.document.addEventListener('click', function (e) {
-        interact = 30;
-        e.preventDefault();
+        if (joueur && joueur.isAlive) {
+            interact = 30;
+            e.preventDefault();
+        }
     });
 
 })();

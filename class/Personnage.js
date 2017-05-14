@@ -9,6 +9,7 @@ class Personnage extends PhysicPoint {
         this.cursorY = cursorY;
         this.lightOn = lightOn;
         this.color = color;
+        this.isAlive = false;
     }
     receive(data) {
         this.x = data.x;
@@ -17,6 +18,7 @@ class Personnage extends PhysicPoint {
         this.cursorY = data.cursorY;
         this.lightOn = data.lightOn;
         this.color = data.color;
+        this.isAlive = data.isAlive;
     }
     getData() {
         return {
@@ -26,6 +28,7 @@ class Personnage extends PhysicPoint {
             cursorY: this.cursorY,
             lightOn: this.lightOn,
             color: this.color,
+            isAlive : data.isAlive
         }
     }
 }
